@@ -650,11 +650,11 @@ function girlanda() {
   }
   return s + '</svg>';
 }
-function snieg(ile) {
+function snieg(ile, kolor = '#ffffff') {
   let s = '';
   for (let i = 0; i < ile; i++) {
     const r = los(3, 8);
-    s += `<div class="platek" style="left:${los(0, 1920)}px;width:${r}px;height:${r}px;opacity:${los(.25, .6)};` +
+    s += `<div class="platek" style="background:${kolor};left:${los(0, 1920)}px;width:${r}px;height:${r}px;opacity:${los(.25, .6)};` +
          `animation-duration:${los(9, 18)}s,${los(3, 6)}s;animation-delay:-${los(0, 18)}s,-${los(0, 6)}s"></div>`;
   }
   return s;
@@ -712,6 +712,7 @@ slajdy.forEach(sl => {
   // Skromnie: tylko delikatny śnieg na ciemnych slajdach.
   // (Gotowe, ale wyłączone: pejzaz(), choinkaPrezenty(), gwiazdki(), girlanda().)
   if (sl.classList.contains('stage') || sl.classList.contains('cover')) h = snieg(28);
+  else if (sl.classList.contains('q')) h = snieg(28, '#7FB59C');   // zielony śnieg na jasnych slajdach
   d.innerHTML = h;
   sl.prepend(d);
 });
