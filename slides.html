@@ -358,6 +358,49 @@ section.statement {
   opacity: 1;
 }
 
+/* ===== Animacje i świąteczne ozdoby ===== */
+section > *:not(.decor):not(aside) { position: relative; z-index: 2; }
+.decor { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+.decor svg, .decor div { position: absolute; }
+
+/* wejście treści: kolejno, od dołu */
+@keyframes wejscie { from { opacity: 0; transform: translateY(40px); } }
+@keyframes wejscieDuze { from { opacity: 0; transform: scale(.85); } }
+section.active > *:not(.decor):not(aside) { animation: wejscie .7s cubic-bezier(.2,.8,.2,1) both; }
+section.active > *:nth-child(3) { animation-delay: .15s; }
+section.active > *:nth-child(4) { animation-delay: .3s; }
+section.active > *:nth-child(5) { animation-delay: .45s; }
+section.stage.active > h1, section.statement.active > h2 { animation: wejscieDuze .8s cubic-bezier(.2,.8,.2,1) both; }
+section.active .qs li, section.active .list li { animation: wejscie .6s cubic-bezier(.2,.8,.2,1) both; }
+section.active .list li:nth-child(2) { animation-delay: .25s; }
+section.active .list li:nth-child(3) { animation-delay: .4s; }
+section.active .list li:nth-child(4) { animation-delay: .55s; }
+section.active .convert > *:nth-child(2) { animation: wejscie .6s .5s both; }
+section.active .convert > *:nth-child(3) { animation: wejscie .6s 1s both; }
+
+/* girlanda lampek */
+@keyframes mrug { 50% { opacity: .35; } }
+.lampka { animation: mrug 2.6s ease-in-out infinite; }
+
+/* śnieg */
+@keyframes pada { from { transform: translateY(-40px); } to { transform: translateY(1140px); } }
+@keyframes kolys { 50% { margin-left: 30px; } }
+.platek { top: 0; border-radius: 50%; background: #ffffff; animation: pada linear infinite, kolys ease-in-out infinite; }
+
+/* sanie Mikołaja przelatujące po niebie */
+@keyframes sanie { 0% { transform: translate(-700px, 120px) rotate(-4deg); } 45% { transform: translate(2100px, -40px) rotate(-4deg); } 100% { transform: translate(2100px, -40px); } }
+.sanie { left: 0; top: 140px; animation: sanie 16s 1s linear infinite both; }
+
+/* choinka, prezenty, gwiazdki */
+@keyframes blysk { 50% { transform: scale(1.25); opacity: .7; } }
+.blysk { transform-box: fill-box; transform-origin: center; animation: blysk 1.8s ease-in-out infinite; }
+@keyframes buj { 50% { transform: translateY(-10px) rotate(3deg); } }
+.buj { animation: buj 3s ease-in-out infinite; }
+@keyframes kreci { to { transform: rotate(360deg); } }
+.gwiazdka { animation: kreci 14s linear infinite, mrug 3s ease-in-out infinite; }
+@keyframes wjazd { from { transform: translateY(260px); } }
+section.active .wjazd { animation: wjazd .9s .2s cubic-bezier(.2,.8,.2,1) both; }
+
 </style>
 </head>
 <body>
@@ -592,6 +635,88 @@ addEventListener('keydown', e => {
 });
 addEventListener('click', e => { if (e.target.closest('#notatki')) return; pokaz(nr + (e.clientX > innerWidth / 2 ? 1 : -1)); });
 addEventListener('resize', dopasuj);
+// ===== Świąteczne ozdoby dokładane do każdego slajdu =====
+function los(a, b) { return a + Math.random() * (b - a); }
+function girlanda() {
+  const kolory = ['#E53935', '#E8B64C', '#3C8562', '#4F8FD9'];
+  let s = '<svg width="1920" height="110" viewBox="0 0 1920 110" style="left:0;top:0" aria-hidden="true">';
+  s += '<path d="M-10 18 Q 240 78 480 18 Q 720 78 960 18 Q 1200 78 1440 18 Q 1680 78 1930 18" stroke="#2B4A42" stroke-width="4" fill="none"/>';
+  for (let i = 0; i < 24; i++) {
+    const x = 40 + i * 80, f = (x % 480) / 480, y = 18 + 60 * 4 * f * (1 - f) * 0.5 + 6;
+    const k = kolory[i % 4];
+    s += `<rect x="${x - 6}" y="${y - 4}" width="12" height="9" rx="2" fill="#7A8A84"/>`;
+    s += `<ellipse class="lampka" style="animation-delay:${(i * 0.37) % 2.6}s" cx="${x}" cy="${y + 18}" rx="11" ry="16" fill="${k}"/>`;
+    s += `<ellipse cx="${x - 4}" cy="${y + 12}" rx="3" ry="5" fill="#ffffff" opacity=".55"/>`;
+  }
+  return s + '</svg>';
+}
+function snieg(ile) {
+  let s = '';
+  for (let i = 0; i < ile; i++) {
+    const r = los(4, 12);
+    s += `<div class="platek" style="left:${los(0, 1920)}px;width:${r}px;height:${r}px;opacity:${los(.4, .9)};` +
+         `animation-duration:${los(9, 18)}s,${los(3, 6)}s;animation-delay:-${los(0, 18)}s,-${los(0, 6)}s"></div>`;
+  }
+  return s;
+}
+const choinkaSvg = (x, h, kolor) => `<path d="M${x} ${1080 - h} l${h * .32} ${h * .45} h-${h * .12} l${h * .2} ${h * .3} h-${h * .1} l${h * .18} ${h * .25} h-${h * 1.0} l${h * .18} -${h * .25} h-${h * .1} l${h * .2} -${h * .3} h-${h * .12} z" fill="${kolor}"/>`;
+function pejzaz() {
+  let s = '<svg width="1920" height="1080" viewBox="0 0 1920 1080" style="left:0;top:0" aria-hidden="true">';
+  s += '<circle cx="1660" cy="230" r="80" fill="#FBF3D6"/><circle cx="1632" cy="210" r="14" fill="#EFE3B8"/><circle cx="1690" cy="262" r="10" fill="#EFE3B8"/>';
+  s += '<g class="wjazd">';
+  s += '<path d="M0 960 Q 300 880 640 950 T 1280 930 T 1920 950 V1080 H0z" fill="#2B5147"/>';
+  [120, 260, 1540, 1700, 1820].forEach((x, i) => s += choinkaSvg(x, 150 + (i % 2) * 50, '#173029'));
+  s += '<path d="M0 1010 Q 400 960 900 1010 T 1920 1000 V1080 H0z" fill="#EAF2F7"/>';
+  s += '</g></svg>';
+  // sanie z reniferem
+  s += `<svg class="sanie" width="460" height="130" viewBox="0 0 460 130" aria-hidden="true" fill="#FBF3D6">
+    <path d="M300 70 h120 q24 0 30 -30 l10 4 q-6 44 -40 46 h-120z" fill="#C8443A"/>
+    <path d="M290 100 h150 q20 0 26 -14" stroke="#E8B64C" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <rect x="360" y="30" width="44" height="40" rx="8" fill="#3C8562"/><rect x="378" y="30" width="8" height="40" fill="#E8B64C"/>
+    <circle cx="335" cy="44" r="16" fill="#E53935"/><circle cx="335" cy="38" r="8" fill="#FBE3D0"/>
+    <path d="M325 33 q10 -20 22 -2z" fill="#E53935"/><circle cx="349" cy="31" r="4" fill="#ffffff"/>
+    <path d="M190 60 L300 78" stroke="#E8B64C" stroke-width="3"/>
+    <ellipse cx="150" cy="62" rx="48" ry="20"/><path d="M118 74 l-12 34 M132 78 l-4 32 M172 76 l8 32 M186 72 l16 30" stroke="#FBF3D6" stroke-width="7" stroke-linecap="round"/>
+    <path d="M104 56 q-10 -24 -26 -24 q-12 0 -14 12 q8 14 30 22z"/><circle class="blysk" cx="64" cy="44" r="7" fill="#E53935"/>
+    <path d="M92 32 q-6 -20 6 -30 M92 20 l-12 -8 M98 8 l10 -6 M80 34 q-14 -16 -10 -30 M74 18 l-12 -4" stroke="#FBF3D6" stroke-width="4" fill="none" stroke-linecap="round"/>
+  </svg>`;
+  return s;
+}
+function choinkaPrezenty() {
+  let s = '<svg class="buj" style="right:36px;bottom:24px" width="190" height="250" viewBox="0 0 190 250" aria-hidden="true">';
+  s += '<rect x="82" y="212" width="26" height="34" rx="3" fill="#7A4A24"/>';
+  s += '<path d="M95 30 L170 140 H138 L182 214 H8 L52 140 H20z" fill="#2E6B4F"/><path d="M95 30 L20 140 H52 L8 214 H95z" fill="#3C8562"/>';
+  [[70, 120, '#E53935'], [120, 150, '#E8B64C'], [60, 185, '#4F8FD9'], [130, 195, '#E53935'], [95, 92, '#E8B64C'], [100, 170, '#ffffff']]
+    .forEach(([x, y, k], i) => s += `<circle class="lampka" style="animation-delay:${i * .4}s" cx="${x}" cy="${y}" r="9" fill="${k}"/>`);
+  s += '<path class="blysk" d="M95 2 l8 17 18 2 -14 12 4 18 -16 -9 -16 9 4 -18 -14 -12 18 -2z" fill="#E8B64C" stroke="#C9952E" stroke-width="2"/>';
+  s += '</svg>';
+  s += '<svg style="left:30px;bottom:24px" width="230" height="150" viewBox="0 0 230 150" aria-hidden="true">';
+  s += '<rect x="10" y="60" width="96" height="86" rx="6" fill="#B3362B"/><rect x="50" y="60" width="16" height="86" fill="#E8B64C"/><rect x="4" y="48" width="108" height="20" rx="4" fill="#C8443A"/><rect x="50" y="48" width="16" height="20" fill="#E8B64C"/>';
+  s += '<path d="M58 48 q-30 -36 -36 -6 q10 10 36 6 q26 4 36 -6 q-6 -30 -36 6z" fill="#E8B64C"/>';
+  s += '<rect x="124" y="92" width="96" height="54" rx="6" fill="#3C8562"/><rect x="164" y="92" width="16" height="54" fill="#FBF8F1"/><rect x="118" y="80" width="108" height="18" rx="4" fill="#2E6B4F"/><rect x="164" y="80" width="16" height="18" fill="#FBF8F1"/>';
+  s += '</svg>';
+  return s;
+}
+function gwiazdki() {
+  let s = '';
+  [[150, 220, 70], [1760, 260, 90], [260, 880, 56], [1650, 860, 64], [960, 150, 40], [520, 160, 34], [1400, 960, 38]].forEach(([x, y, r], i) => {
+    s += `<svg style="left:${x - r / 2}px;top:${y - r / 2}px" width="${r}" height="${r}" viewBox="0 0 24 24" aria-hidden="true">` +
+         `<path class="gwiazdka" style="transform-origin:12px 12px;animation-delay:-${i * 2}s" d="M12 1.5l3 6.6 7.2.8-5.4 4.9 1.5 7.1L12 17.3l-6.3 3.6 1.5-7.1L1.8 8.9 9 8.1z" fill="#FFF6DC" opacity=".85"/></svg>`;
+  });
+  return s;
+}
+slajdy.forEach(sl => {
+  const d = document.createElement('div');
+  d.className = 'decor';
+  let h = '';
+  if (sl.classList.contains('stage')) h = snieg(60) + pejzaz();
+  else if (sl.classList.contains('cover')) h = snieg(50);
+  else if (sl.classList.contains('statement')) h = gwiazdki();
+  else if (!sl.querySelector('.convert, .letter')) h = choinkaPrezenty();
+  d.innerHTML = h + girlanda();
+  sl.prepend(d);
+});
+
 dopasuj(); pokaz(nr);
 </script>
 </body>
