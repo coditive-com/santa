@@ -653,8 +653,8 @@ function girlanda() {
 function snieg(ile) {
   let s = '';
   for (let i = 0; i < ile; i++) {
-    const r = los(4, 12);
-    s += `<div class="platek" style="left:${los(0, 1920)}px;width:${r}px;height:${r}px;opacity:${los(.4, .9)};` +
+    const r = los(3, 8);
+    s += `<div class="platek" style="left:${los(0, 1920)}px;width:${r}px;height:${r}px;opacity:${los(.25, .6)};` +
          `animation-duration:${los(9, 18)}s,${los(3, 6)}s;animation-delay:-${los(0, 18)}s,-${los(0, 6)}s"></div>`;
   }
   return s;
@@ -709,11 +709,10 @@ slajdy.forEach(sl => {
   const d = document.createElement('div');
   d.className = 'decor';
   let h = '';
-  if (sl.classList.contains('stage')) h = snieg(60) + pejzaz();
-  else if (sl.classList.contains('cover')) h = snieg(50);
-  else if (sl.classList.contains('statement')) h = gwiazdki();
-  else if (!sl.querySelector('.convert, .letter')) h = choinkaPrezenty();
-  d.innerHTML = h + girlanda();
+  // Skromnie: tylko delikatny śnieg na ciemnych slajdach.
+  // (Gotowe, ale wyłączone: pejzaz(), choinkaPrezenty(), gwiazdki(), girlanda().)
+  if (sl.classList.contains('stage') || sl.classList.contains('cover')) h = snieg(28);
+  d.innerHTML = h;
   sl.prepend(d);
 });
 
