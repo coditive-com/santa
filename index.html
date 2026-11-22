@@ -659,13 +659,7 @@ function rysuj(t) {
     ctx.globalAlpha = 1;
   });
 
-  if (stan === 'czekamy') {
-    const cx = CW / 2, cy = CH * 0.42;
-    tekst(USTAWIENIA.tytul, cx, cy, 40 * U, '#ffd54f', 'center', 900);
-    ctx.globalAlpha = 0.55 + 0.45 * Math.abs(Math.sin(t * 2));
-    tekst('Czekamy na bohatera…', cx, cy + 50 * U, 20 * U, '#ffffff', 'center', 700);
-    ctx.globalAlpha = 1;
-  }
+  // 'czekamy' – na razie samo tło, bez napisów
 
   if ((stan === 'spacer' || stan === 'gra') && dotykowe) rysujStrzalki();
   if (stan === 'gra') rysujHUD(t);
