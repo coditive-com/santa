@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Gra dla elfów</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b1630; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
+  canvas { display: block; outline: none; width: 100vw; height: 100vh; width: 100dvw; height: 100dvh; image-rendering: pixelated; image-rendering: crisp-edges; }
+</style>
+</head>
+<body>
+<canvas id="gra"></canvas>
+<script>
+"use strict";
+
+// =====================================================================
+// USTAWIENIA – tu zmieniamy szybkość, czas i głośność
+// =====================================================================
+const USTAWIENIA = {
+  czasGry: 20,              // sekundy
+  predkoscBohatera: 124,    // piksele rysunku na sekundę
+  coIleSpada: 0.85,         // sekundy między spadającymi rzeczami
+  szansaNaZlaRzecz: 0.28,   // 0.28 = mniej więcej co czwarta rzecz to węgielek
+  spadanieMin: 52,          // prędkość spadania (piksele rysunku na sekundę)
+  spadanieMax: 76,
+  przyspieszanie: 1.0,      // o ile szybciej spada z każdą sekundą gry
+  glosnoscMuzyki: 0.07,
+  glosnoscEfektow: 0.18,
+};
+
+// Rozmiar piksela rysunku liczymy z ekranu (ok. 320 pikseli rysunku na wysokość), zawsze całkowity – ostry obraz.
+// Gra zajmuje cały ekran (100dvw × 100dvh). Świat gry dopasowuje się do proporcji ekranu:
+// zwykle ma 320 pikseli rysunku wysokości, a na wąskim, pionowym ekranie co najmniej 192 szerokości.
+let dotykowe = ('ontouchstart' in window) || (window.matchMedia && matchMedia('(pointer: coarse)').matches);
+let SW = 192, SH = 320;        // świat gry w dużych pikselach (liczone w ustawRozmiar)
+let W = 768, H = 1280;        // płótno w pikselach urządzenia
+let CW = 768, CH = 1280;      // ekran w pikselach CSS
+let DPR = 1, P = 4, PX = 4;   // gęstość ekranu, piksele urządzenia na piksel rysunku, piksele CSS na piksel rysunku
+let U = 1;                    // jednostka interfejsu (rośnie na dużych ekranach)
+let ZIEMIA = 272;           // linia śniegu, po którym chodzi bohater (pod nią miejsce na strzałki)
+
+// =====================================================================
+// RYSUNKI (pixel art) – każda litera to jeden kolor z palety, '.' = puste
+// =====================================================================
+const SPRITES = {
+  bohater: { // renifer 32×32
+    paleta: { a: '#efd9ac', b: '#8b5a2b', d: '#6b4220', l: '#e0b07a', e: '#141414', w: '#ffffff', r: '#e53935', R: '#ff8a80',
+              s: '#2e9b5a', S: '#1f7a44', y: '#ffffff', p: '#f4a6a6', k: '#2b1a10', h: '#3a2414' },
+    klatki: [
+      [
+        '................................',
+        '...a....a..............a....a...',
+        '...a....a..a........a..a....a...',
+        '...aa...a.aa........aa.a...aa...',
+        '....aa..aaa..........aaa..aa....',
+        '.....aaaaa............aaaaa.....',
+        '......aaa..............aaa......',
+        '.......aa..............aa.......',
+        '........aabbbbbbbbbbbbaa........',
+        '......ddbbbbbbbbbbbbbbbbdd......',
+        '....ppdbbbbbbbbbbbbbbbbbbdpp....',
+        '....dppbbbbbbbbbbbbbbbbbbppd....',
+        '.....ddbbbbbbbbbbbbbbbbbbdd.....',
+        '.......bbweebbbbbbbbweedd.......',
+        '.......bbeeebbbbbbbbeeedd.......',
+        '.......bbeeebbbbbbbbeeedd.......',
+        '.......bppbbbllllllbbbppd.......',
+        '........bbblllRrrrlllbdd........',
+        '........bbllrrrrrrrrlldd........',
+        '........bblllrrrrrrllldd........',
+        '.........blllllllllllld.........',
+        '..........dllllkklllld..........',
+        '...........dddddddddd...........',
+        '........SSSSSSSSSSSSSSSS........',
+        '........ssssssssssssssss........',
+        '........sysysysyysysysys........',
+        '.........bbbbbbbbbbbbdd.........',
+        '........bbbbllllllllbbdd........',
+        '........dbbbllllllllbbdd........',
+        '........dbbb........bbbd........',
+        '........dbbb........bbbd........',
+        '........hhhh........hhhh........',
+      ],
+      [
+        '................................',
+        '................................',
+        '...a....a..............a....a...',
+        '...a....a..a........a..a....a...',
+        '...aa...a.aa........aa.a...aa...',
+        '....aa..aaa..........aaa..aa....',
+        '.....aaaaa............aaaaa.....',
+        '......aaa..............aaa......',
+        '.......aa..............aa.......',
+        '........aabbbbbbbbbbbbaa........',
+        '......ddbbbbbbbbbbbbbbbbdd......',
+        '....ppdbbbbbbbbbbbbbbbbbbdpp....',
+        '....dppbbbbbbbbbbbbbbbbbbppd....',
+        '.....ddbbbbbbbbbbbbbbbbbbdd.....',
+        '.......bbweebbbbbbbbweedd.......',
+        '.......bbeeebbbbbbbbeeedd.......',
+        '.......bbeeebbbbbbbbeeedd.......',
+        '.......bppbbbllllllbbbppd.......',
+        '........bbblllRrrrlllbdd........',
+        '........bbllrrrrrrrrlldd........',
+        '........bblllrrrrrrllldd........',
+        '.........blllllllllllld.........',
+        '..........dllllkklllld..........',
+        '...........dddddddddd...........',
+        '........SSSSSSSSSSSSSSSS........',
+        '........ssssssssssssssss........',
+        '........sysysysyysysysys........',
+        '.........bbbbbbbbbbbbdd.........',
+        '........bbbbllllllllbbdd........',
+        '........dbbbllllllllbbdd........',
+        '.........dbbb......bbbd.........',
+        '.........hhhh......hhhh.........',
+      ],
+    ],
+  },
+  prezent: { // dobra rzecz: +1, 24×24
+    paleta: { r: '#e53935', R: '#ff7a6e', D: '#b71c1c', y: '#ffd54f', Y: '#e0a800', o: '#fff6c9' },
+    klatki: [[
+      '........................',
+      '....yyyyyy....yyyyyy....',
+      '...yy....yy..yy....yy...',
+      '...yy....yooyyy....yy...',
+      '...YY....YyyyyY....YY...',
+      '...YYY..YYyyyyYY..YYY...',
+      '....YYYYYYyyyyYYYYYY....',
+      'RRRRRRRRRRoyyYRRRRRRRRRR',
+      'rrrrrrrrrroyyYrrrrrrrrrr',
+      'rrrrrrrrrroyyYrrrrrrrrrr',
+      'DDDDDDDDDDoyyYDDDDDDDDDD',
+      '.RRrrrrrrroyyYrrrrDDDDD.',
+      '.RRrrrrrrroyyYrrrrDDDDD.',
+      '.RRrrrrrrroyyYrrrrDDDDD.',
+      '.RRrrrrrrroyyYrrrrDDDDD.',
+      '.RRrrrrrrroyyYrrrrDDDDD.',
+      '.RRrrrrrrroyyYrrrrDDDDD.',
+      '.RRrrrrrrroyyYrrrrDDDDD.',
+      '.RRrrrrrrroyyYrrrrDDDDD.',
+      '.RRrrrrrrroyyYrrrrDDDDD.',
+      '.RRrrrrrrroyyYrrrrDDDDD.',
+      '.RRrrrrrrroyyYrrrrDDDDD.',
+      '.RRrrrrrrroyyYrrrrDDDDD.',
+      '.DDDDDDDDDoyyYDDDDDDDDD.',
+    ]],
+  },
+  wegielek: { // zła rzecz: -1, 20×20
+    paleta: { d: '#33333d', D: '#1c1c22', g: '#5a5a6a', G: '#9a9ab0' },
+    klatki: [[
+      '....................',
+      '....................',
+      '.........gggggg.....',
+      '...dddgggggggggg....',
+      '..dddddgggggGggg....',
+      '..ddddGGggggggggg...',
+      '.dddddGdggggggggg...',
+      '.dddddddggggggggg...',
+      '.ddddddddggggGggg...',
+      '.dddGddddgggggggg...',
+      '.DDDDDDDDDddddddd...',
+      '.DDDDDDDDDDdddddd...',
+      '.DDDDDDDDDDddddd....',
+      '.DDDDDDDDDDDdddd....',
+      '..DDDDDDDDDDdddd....',
+      '..DDDDDDDDDDDdd.....',
+      '....DDDDDDDDDdd.....',
+      '.......DDDDDDD......',
+      '....................',
+      '....................',
+    ]],
+  },
+  zegar: { // ikona czasu w liczniku, 24×24
+    paleta: { k: '#1c2540', w: '#ffffff', s: '#cfd9ea', r: '#e53935' },
+    klatki: [[
+      '........................',
+      '..........rrrr..........',
+      '...........kk...........',
+      '........kkkkkkkk........',
+      '......kkkkkkkkkkkk......',
+      '.....kkkwwwkkwwwkkk.....',
+      '....kkkwwwwwwwwwwkkk....',
+      '...kkwwwwwwkkwwwwwwkk...',
+      '...kkwwwwwwkkwwwwwwkk...',
+      '..kkwwwwwwwkkwwwwwwskk..',
+      '..kkwwwwwwwkkwwwwwwskk..',
+      '..kwwwwwwwwkkwwwwwwssk..',
+      '.kkkwwwwwwwrrkkkkwwskkk.',
+      '.kkkwwwwwwwrrkkkkwwskkk.',
+      '.kkwwwwwwwwwwwwwwwwsskk.',
+      '..kwwwwwwwwwwwwwwwwssk..',
+      '..kkwwwwwwwwwwwwwwwskk..',
+      '..kkwwwwwwwwwwwwwwsskk..',
+      '...kkwwwwwwwwwwwwsskk...',
+      '...kkwwwwwwwwwwwssskk...',
+      '....kkkwsswwwwssskkk....',
+      '.....kkkssskkssskkk.....',
+      '......kkkkkkkkkkkk......',
+      '........kkkkkkkk........',
+    ]],
+  },
+};
+
+const KOLORY_PREZENTOW = [
+  { r: '#e53935', R: '#ff7a6e', D: '#b71c1c' },
+  { r: '#2e9b5a', R: '#5fd08a', D: '#1e6b3c' },
+  { r: '#1e88e5', R: '#6ab8ff', D: '#1259a0' },
+  { r: '#8e24aa', R: '#c77ddc', D: '#5e1675' },
+];
+
+function rysujSprite(c, sprite, klatka, x, y, skala = 1, innaPaleta = null) {
+  const n = sprite.klatki.length;
+  const wiersze = sprite.klatki[((klatka % n) + n) % n];
+  const paleta = innaPaleta ? Object.assign({}, sprite.paleta, innaPaleta) : sprite.paleta;
+  for (let j = 0; j < wiersze.length; j++) {
+    const w = wiersze[j];
+    for (let i = 0; i < w.length; i++) {
+      const kolor = paleta[w[i]];
+      if (!kolor) continue;
+      c.fillStyle = kolor;
+      c.fillRect(Math.round(x) + i * skala, Math.round(y) + j * skala, skala, skala);
+    }
+  }
+}
+
+// Ciemny obrys wokół postaci – żeby bohater był wyraźny na każdym tle
+function rysujObrys(c, sprite, klatka, x, y, skala = 1, kolor = '#0f1830') {
+  const n = sprite.klatki.length;
+  const wiersze = sprite.klatki[((klatka % n) + n) % n];
+  c.fillStyle = kolor;
+  for (let j = 0; j < wiersze.length; j++) {
+    for (let i = 0; i < wiersze[j].length; i++) {
+      if (!sprite.paleta[wiersze[j][i]]) continue;
+      for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+        c.fillRect(Math.round(x) + (i + dx) * skala, Math.round(y) + (j + dy) * skala, skala, skala);
+      }
+    }
+  }
+}
+
+// =====================================================================
+// PŁÓTNA
+// =====================================================================
+const ekran = document.getElementById('gra');
+const ctx = ekran.getContext('2d');
+const swiat = document.createElement('canvas');
+const sw = swiat.getContext('2d');
+
+// =====================================================================
+// TŁO – zimowa wioska nocą (rysowane raz)
+// =====================================================================
+const tlo = document.createElement('canvas');
+
+function choinka(c, cx, podstawa, h, swiatelka = true) {
+  // pień
+  c.fillStyle = '#5a3a22'; c.fillRect(cx - 2, podstawa - 6, 4, 6);
+  c.fillStyle = '#3e2716'; c.fillRect(cx + 1, podstawa - 6, 1, 6);
+  const gora = podstawa - 6 - h;
+  const pietra = 4;
+  for (let t = 0; t < pietra; t++) {
+    const ty = gora + Math.floor(t * h / pietra * 0.85);
+    const th = Math.floor(h / pietra) + 6;
+    for (let r = 0; r < th; r++) {
+      const pol = Math.floor(r * 0.65) + t * 2 + 1;
+      c.fillStyle = '#1f5a3a'; c.fillRect(cx - pol, ty + r, pol * 2, 1);   // igły
+      c.fillStyle = '#174a2f'; c.fillRect(cx, ty + r, pol, 1);             // cień po prawej
+      c.fillStyle = '#2f7a4f'; c.fillRect(cx - pol, ty + r, 1, 1);         // jaśniejszy brzeg
+      if (r < 3) { c.fillStyle = '#ffffff'; c.fillRect(cx - pol, ty + r, pol * 2, 1); }   // czapa śniegu
+      if (r === 3) { c.fillStyle = '#ffffff'; for (let x = cx - pol; x < cx + pol; x += 3) c.fillRect(x, ty + r, 1, 1); } // sople śniegu
+    }
+  }
+  if (swiatelka) {
+    const kolory = ['#ff5252', '#ffd54f', '#4fc3f7', '#ff80ab'];
+    for (let i = 0; i < Math.floor(h / 6); i++) {
+      const y = gora + 6 + Math.floor((i * 37) % (h - 6));
+      const pol = Math.floor((y - gora) * 0.45);
+      const x = cx - pol + ((i * 53) % Math.max(1, pol * 2));
+      c.fillStyle = kolory[i % kolory.length]; c.fillRect(x, y, 2, 2);
+    }
+  }
+}
+
+function domek(c, x, podstawa) {
+  const w = 36, h = 22;
+  // ściana z bali
+  c.fillStyle = '#2b1a10'; c.fillRect(x - 2, podstawa - h - 2, w + 4, h + 2);
+  c.fillStyle = '#9c3d2e'; c.fillRect(x, podstawa - h, w, h);
+  c.fillStyle = '#7a2e22'; c.fillRect(x + w / 2, podstawa - h, w / 2, h);
+  c.fillStyle = '#6a271c'; for (let y = podstawa - h + 3; y < podstawa; y += 4) c.fillRect(x, y, w, 1);
+  // dach ze śniegiem
+  for (let r = 0; r < 16; r++) {
+    const pol = r + 4;
+    c.fillStyle = '#2b1a10'; c.fillRect(x + w / 2 - pol - 2, podstawa - h - 16 + r, pol * 2 + 4, 1);
+    c.fillStyle = r < 3 ? '#ffffff' : (r % 4 === 0 ? '#d6e4f3' : '#e8f1fb');
+    c.fillRect(x + w / 2 - pol, podstawa - h - 16 + r, pol * 2, 1);
+  }
+  c.fillStyle = '#ffffff';  // sople pod dachem
+  for (let i = x - 2; i < x + w + 2; i += 3) c.fillRect(i, podstawa - h, 1, 2 + (i % 2));
+  // komin z cegieł
+  c.fillStyle = '#2b1a10'; c.fillRect(x + 25, podstawa - h - 20, 8, 12);
+  c.fillStyle = '#8a3a2a'; c.fillRect(x + 26, podstawa - h - 19, 6, 10);
+  c.fillStyle = '#6a271c'; c.fillRect(x + 26, podstawa - h - 16, 6, 1); c.fillRect(x + 26, podstawa - h - 12, 6, 1); c.fillRect(x + 29, podstawa - h - 19, 1, 3);
+  c.fillStyle = '#ffffff'; c.fillRect(x + 25, podstawa - h - 21, 8, 2);
+  // okna z ramkami i ciepłym światłem
+  for (const ox of [4, 24]) {
+    c.fillStyle = '#4a2414'; c.fillRect(x + ox - 1, podstawa - h + 5, 10, 10);
+    c.fillStyle = '#ffd75e'; c.fillRect(x + ox, podstawa - h + 6, 8, 8);
+    c.fillStyle = '#fff0a8'; c.fillRect(x + ox, podstawa - h + 6, 3, 3);
+    c.fillStyle = '#4a2414'; c.fillRect(x + ox + 3, podstawa - h + 6, 2, 8); c.fillRect(x + ox, podstawa - h + 9, 8, 2);
+    c.fillStyle = '#ffffff'; c.fillRect(x + ox - 1, podstawa - h + 15, 10, 1);
+  }
+  // drzwi z wieńcem
+  c.fillStyle = '#2b1a10'; c.fillRect(x + 13, podstawa - 14, 10, 14);
+  c.fillStyle = '#5a2c18'; c.fillRect(x + 14, podstawa - 13, 8, 13);
+  c.fillStyle = '#4a2414'; c.fillRect(x + 17, podstawa - 13, 1, 13);
+  c.fillStyle = '#ffd54f'; c.fillRect(x + 20, podstawa - 7, 1, 1);
+  c.fillStyle = '#2e9b5a';
+  for (const [dx, dy] of [[0,-2],[1,-2],[2,-1],[2,0],[2,1],[1,2],[0,2],[-1,2],[-2,1],[-2,0],[-2,-1],[-1,-2]]) c.fillRect(x + 18 + dx, podstawa - 17 + dy, 1, 1);
+  c.fillStyle = '#e53935'; c.fillRect(x + 18, podstawa - 15, 1, 1);
+}
+
+function stworzTlo() {
+  tlo.width = SW; tlo.height = SH;
+  const c = tlo.getContext('2d');
+  // niebo w pasach, z delikatnym przejściem (dithering)
+  const niebo = ['#0d1b3d', '#112350', '#162c62', '#1c3774', '#244386', '#2d5197', '#385fa6'];
+  const pas = Math.ceil(ZIEMIA / 8);
+  niebo.forEach((kol, i) => { c.fillStyle = kol; c.fillRect(0, i * pas, SW, pas); });
+  c.fillStyle = niebo[niebo.length - 1]; c.fillRect(0, niebo.length * pas, SW, ZIEMIA);
+  for (let i = 1; i < niebo.length; i++) {
+    c.fillStyle = niebo[i];
+    for (let x = (i % 2); x < SW; x += 2) c.fillRect(x, i * pas - 1, 1, 1);
+    for (let x = ((i + 1) % 2); x < SW; x += 4) c.fillRect(x, i * pas - 2, 1, 1);
+  }
+  // księżyc z poświatą i kraterami
+  const ksX = SW - 44, ksY = 64;   // księżyc niżej, żeby nie chował się pod licznikiem
+  for (let dy = -20; dy <= 20; dy++) for (let dx = -20; dx <= 20; dx++) {
+    const d = dx * dx + dy * dy;
+    if (d <= 196) { c.fillStyle = dx + dy > 8 ? '#efe2b0' : '#fff4c9'; c.fillRect(ksX + dx, ksY + dy, 1, 1); }
+    else if (d <= 400 && (dx + dy) % 2 === 0) { c.fillStyle = 'rgba(255, 244, 201, 0.12)'; c.fillRect(ksX + dx, ksY + dy, 1, 1); }
+  }
+  c.fillStyle = '#e2d39a';
+  for (const [dx, dy, r] of [[-5, -4, 3], [5, 3, 2], [-2, 7, 2], [6, -6, 1]]) {
+    for (let yy = -r; yy <= r; yy++) for (let xx = -r; xx <= r; xx++) if (xx * xx + yy * yy <= r * r) c.fillRect(ksX + dx + xx, ksY + dy + yy, 1, 1);
+  }
+  // dalekie wzgórza
+  for (let x = 0; x < SW; x++) {
+    const h = ZIEMIA - 64 + Math.round(8 * Math.sin(x / 18) + 6 * Math.sin(x / 8.6));
+    c.fillStyle = '#a9c8e8'; c.fillRect(x, h, 1, ZIEMIA - h);
+    c.fillStyle = '#d6e6f7'; c.fillRect(x, h, 1, 2);
+    if (x % 3 === 0) { c.fillStyle = '#98b9dc'; c.fillRect(x, h + 6 + (x % 5), 1, 1); }
+  }
+  // dalekie choinki (bez światełek, w kolorze wzgórz)
+  for (let x = 6; x < SW; x += 23) {
+    const h = ZIEMIA - 56 + Math.round(8 * Math.sin(x / 18) + 6 * Math.sin(x / 8.6));
+    for (let r = 0; r < 12; r++) { c.fillStyle = '#7d9fc4'; c.fillRect(x - Math.floor(r / 2), h - 4 + r, Math.floor(r / 2) * 2 + 1, 1); }
+  }
+  // bliższe wzgórza
+  for (let x = 0; x < SW; x++) {
+    const h = ZIEMIA - 34 + Math.round(6 * Math.sin(x / 14 + 1) + 4 * Math.sin(x / 6));
+    c.fillStyle = '#c9dcf0'; c.fillRect(x, h, 1, ZIEMIA - h);
+    c.fillStyle = '#eef5ff'; c.fillRect(x, h, 1, 2);
+  }
+  // wioska powtarza się co 192 piksele, więc pasuje do każdej szerokości ekranu
+  for (let o = 0, n = 0; o < SW; o += 192, n++) {
+    choinka(c, o + 16, ZIEMIA, 40);
+    choinka(c, o + 44, ZIEMIA - 4, 28);
+    if (n % 2 === 0) domek(c, o + 76, ZIEMIA);
+    else { choinka(c, o + 84, ZIEMIA, 36); choinka(c, o + 104, ZIEMIA - 2, 24); }
+    choinka(c, o + 136, ZIEMIA - 2, 32);
+    choinka(c, o + 172, ZIEMIA, 44);
+  }
+  // śnieg na ziemi z zaspami
+  c.fillStyle = '#f4f8ff'; c.fillRect(0, ZIEMIA, SW, SH - ZIEMIA);
+  c.fillStyle = '#ffffff'; c.fillRect(0, ZIEMIA, SW, 2);
+  for (let x = 0; x < SW; x++) {
+    const z = Math.round(2 * Math.sin(x / 11) + 1.5 * Math.sin(x / 4));
+    if (z > 0) { c.fillStyle = '#ffffff'; c.fillRect(x, ZIEMIA - z, 1, z); }
+  }
+  c.fillStyle = '#d4e3f5';
+  for (let i = 0; i < SW * 0.8; i++) {
+    const x = (i * 37) % SW, y = ZIEMIA + 6 + ((i * 53) % Math.max(1, SH - ZIEMIA - 8));
+    c.fillRect(x, y, 3, 1);
+  }
+  c.fillStyle = '#e3edf9';
+  for (let i = 0; i < SW * 0.5; i++) {
+    const x = (i * 71 + 13) % SW, y = ZIEMIA + 4 + ((i * 29) % Math.max(1, SH - ZIEMIA - 6));
+    c.fillRect(x, y, 2, 1);
+  }
+}
+
+const gwiazdy = [], platki = [];
+function stworzNiebo() {
+  gwiazdy.length = 0; platki.length = 0;
+  for (let i = 0; i < SW * 0.18; i++) {
+    const x = Math.floor(Math.random() * SW), y = Math.floor(Math.random() * ZIEMIA * 0.65);
+    if (Math.abs(x - (SW - 44)) < 22 && Math.abs(y - 64) < 22) continue;
+    gwiazdy.push({ x, y, faza: Math.random() * 6 });
+  }
+  for (let i = 0; i < SW * 0.35; i++) { const r = Math.random() < 0.35 ? 2 : 1; platki.push({ x: Math.random() * SW, y: Math.random() * SH, v: (12 + Math.random() * 16) * (r === 2 ? 1.3 : 1), r, faza: Math.random() * 6 }); }
+}
+
+// Dopasowanie świata gry do ekranu (przy starcie i przy każdej zmianie rozmiaru okna)
+function ustawRozmiar() {
+  CW = innerWidth; CH = innerHeight;
+  DPR = Math.min(window.devicePixelRatio || 1, 3);
+  W = Math.round(CW * DPR); H = Math.round(CH * DPR);
+  P = Math.max(1, Math.min(Math.round(H / 320), Math.floor(W / 192)));   // całkowity rozmiar piksela rysunku
+  PX = P / DPR;
+  SW = Math.ceil(W / P); SH = Math.ceil(H / P);
+  ZIEMIA = SH - (dotykowe ? 72 : 48);   // na dotyku wyższy pas śniegu na strzałki
+  U = Math.max(0.75, Math.min(2.2, Math.min(CW / 400, CH / 720)));
+  swiat.width = SW; swiat.height = SH;
+  ekran.width = W; ekran.height = H;
+  stworzTlo(); stworzNiebo();
+  bohater.x = Math.min(bohater.x, SW - 32);
+}
+let czekajNaRozmiar = null;
+addEventListener('resize', () => { clearTimeout(czekajNaRozmiar); czekajNaRozmiar = setTimeout(ustawRozmiar, 100); });
+
+// =====================================================================
+// DŹWIĘK – muzyczka i efekty (Web Audio, bez plików)
+// =====================================================================
+let ac = null, glowny, gMuzyka, gEfekty, wyciszone = false;
+const B = 0.4; // długość ćwierćnuty w sekundach
+const NUTY = { C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.0, A4: 440, C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, C3: 130.81, D3: 146.83, F3: 174.61, G3: 196.0, A3: 220, G2: 98.0 };
+// Jingle Bells (refren) – domena publiczna
+const MELODIA = [
+  ['E5',1],['E5',1],['E5',2], ['E5',1],['E5',1],['E5',2], ['E5',1],['G5',1],['C5',1.5],['D5',0.5], ['E5',4],
+  ['F5',1],['F5',1],['F5',1.5],['F5',0.5], ['F5',1],['E5',1],['E5',1],['E5',0.5],['E5',0.5], ['E5',1],['D5',1],['D5',1],['E5',1], ['D5',2],['G5',2],
+  ['E5',1],['E5',1],['E5',2], ['E5',1],['E5',1],['E5',2], ['E5',1],['G5',1],['C5',1.5],['D5',0.5], ['E5',4],
+  ['F5',1],['F5',1],['F5',1.5],['F5',0.5], ['F5',1],['E5',1],['E5',1],['E5',0.5],['E5',0.5], ['G5',1],['G5',1],['F5',1],['D5',1], ['C5',4],
+];
+const BAS = [['C3','G3'],['C3','G3'],['C3','G3'],['C3','G3'],['F3','C4'],['C3','G3'],['D3','A3'],['G2','D3'],
+             ['C3','G3'],['C3','G3'],['C3','G3'],['C3','G3'],['F3','C4'],['C3','G3'],['G2','D3'],['C3','G3']];
+let iMel = 0, tMel = 0, iBas = 0, tBas = 0;
+
+function startDzwieku() {
+  if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  ac = new AC();
+  glowny = ac.createGain(); glowny.gain.value = wyciszone ? 0 : 1; glowny.connect(ac.destination);
+  gMuzyka = ac.createGain(); gMuzyka.gain.value = USTAWIENIA.glosnoscMuzyki; gMuzyka.connect(glowny);
+  gEfekty = ac.createGain(); gEfekty.gain.value = USTAWIENIA.glosnoscEfektow; gEfekty.connect(glowny);
+  tMel = tBas = ac.currentTime + 0.15;
+  setInterval(planujMuzyke, 50);
+}
+
+function ton(freq, start, dl, typ, glosnosc, cel) {
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = typ; o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, start);
+  g.gain.linearRampToValueAtTime(glosnosc, start + 0.01);
+  g.gain.setValueAtTime(glosnosc, start + dl * 0.6);
+  g.gain.linearRampToValueAtTime(0.0001, start + dl * 0.95);
+  o.connect(g); g.connect(cel);
+  o.start(start); o.stop(start + dl);
+}
+
+function planujMuzyke() {
+  const doKiedy = ac.currentTime + 0.3;
+  while (tMel < doKiedy) {
+    const [n, d] = MELODIA[iMel];
+    ton(NUTY[n], tMel, d * B * 0.95, 'square', 0.35, gMuzyka);
+    tMel += d * B; iMel = (iMel + 1) % MELODIA.length;
+  }
+  while (tBas < doKiedy) {
+    const takt = Math.floor(iBas / 4) % 16, bit = iBas % 4;
+    ton(NUTY[BAS[takt][bit % 2]], tBas, B * 0.9, 'triangle', 0.6, gMuzyka);
+    tBas += B; iBas++;
+  }
+}
+
+function dzwiekZlapania() {
+  if (!ac) return;
+  const t = ac.currentTime;
+  ton(988, t, 0.07, 'square', 0.5, gEfekty);
+  ton(1319, t + 0.07, 0.12, 'square', 0.5, gEfekty);
+}
+function dzwiekBum() {
+  if (!ac) return;
+  const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+  o.type = 'triangle';
+  o.frequency.setValueAtTime(200, t); o.frequency.exponentialRampToValueAtTime(60, t + 0.3);
+  g.gain.setValueAtTime(0.9, t); g.gain.linearRampToValueAtTime(0.0001, t + 0.3);
+  o.connect(g); g.connect(gEfekty); o.start(t); o.stop(t + 0.32);
+}
+function dzwiekStart() {
+  if (!ac) return;
+  const t = ac.currentTime;
+  [523, 659, 784, 1047].forEach((f, i) => ton(f, t + i * 0.08, 0.1, 'square', 0.45, gEfekty));
+}
+function dzwiekKoniec() {
+  if (!ac) return;
+  const t = ac.currentTime;
+  [784, 1047, 1319, 1568].forEach((f, i) => ton(f, t + i * 0.12, i === 3 ? 0.5 : 0.14, 'square', 0.45, gEfekty));
+}
+function przelaczDzwiek() {
+  wyciszone = !wyciszone;
+  if (glowny) glowny.gain.value = wyciszone ? 0 : 1;
+}
+
+// =====================================================================
+// STAN GRY
+// =====================================================================
+let stan = 'start';           // 'start' | 'gra' | 'koniec'
+let wynik = 0, czas = USTAWIENIA.czasGry, doSpadania = 0, blokada = 0;
+let runda = 1;                // kolejne rundy przy „Graj dalej” (np. drużyna gra po kolei)
+let przyciski = [];           // przyciski na ekranie końcowym (do klikania i dotyku)
+let rzeczy = [], czastki = [], napisy = [];
+const bohater = { x: 40, anim: 0, skok: 0, trzes: 0, idzie: false };
+ustawRozmiar();
+bohater.x = SW / 2 - 16;
+
+// odNowa = true: punkty od zera; odNowa = false: „Graj dalej”, kolejne 20 s i punkty liczą się dalej
+function nowaGra(odNowa = true) {
+  if (odNowa) { wynik = 0; runda = 1; } else runda++;
+  czas = USTAWIENIA.czasGry; doSpadania = 0.6;
+  rzeczy = []; czastki = []; napisy = [];
+  bohater.x = SW / 2 - 16; bohater.skok = 0; bohater.trzes = 0;
+  stan = 'gra';
+  dzwiekStart();
+}
+
+function koniecGry() {
+  stan = 'koniec'; blokada = 1.2;
+  rzeczy.forEach(r => puf(r.x + r.w / 2, r.y + r.h / 2, '#ffffff', 8));
+  rzeczy = [];
+  dzwiekKoniec();
+}
+
+function akcja(odNowa = false) {
+  if (stan === 'start') nowaGra(true);
+  else if (stan === 'koniec' && blokada <= 0) nowaGra(odNowa);
+}
+
+function puf(x, y, kolor, ile, kolory) {
+  for (let i = 0; i < ile; i++) {
+    const kat = Math.random() * Math.PI * 2, v = 30 + Math.random() * 60;
+    czastki.push({ x, y, vx: Math.cos(kat) * v, vy: Math.sin(kat) * v - 40, zycie: 0.6 + Math.random() * 0.3,
+                   kolor: kolory ? kolory[i % kolory.length] : kolor });
+  }
+}
+
+// =====================================================================
+// STEROWANIE – strzałki / A D, dotyk lewej i prawej połowy ekranu
+// =====================================================================
+const klawisze = { lewo: false, prawo: false };
+const dotyki = new Map();
+
+// Klawisze: e.key + e.code (różne przeglądarki i układy klawiatury), także gdy gra jest w podglądzie (iframe)
+function klawisz(e) {
+  const k = e.key, c = e.code;
+  if (k === 'ArrowLeft' || k === 'Left' || c === 'ArrowLeft' || c === 'KeyA') return 'lewo';
+  if (k === 'ArrowRight' || k === 'Right' || c === 'ArrowRight' || c === 'KeyD') return 'prawo';
+  return null;
+}
+addEventListener('keydown', e => {
+  startDzwieku();
+  const k = e.key, kier = klawisz(e);
+  if (kier) { klawisze[kier] = true; e.preventDefault(); }
+  if (k === ' ' || k === 'Enter') { e.preventDefault(); akcja(false); }   // Spacja = graj dalej
+  if ((k === 'r' || k === 'R') && stan === 'koniec') akcja(true);         // R = od nowa
+  if (k === 'm' || k === 'M') przelaczDzwiek();
+  if (k === 'f' || k === 'F') pelnyEkran();
+});
+addEventListener('keyup', e => {
+  const kier = klawisz(e);
+  if (kier) klawisze[kier] = false;
+});
+// Gdy okno straci fokus, puść wszystkie klawisze (żeby bohater nie szedł sam)
+addEventListener('blur', () => { klawisze.lewo = klawisze.prawo = false; dotyki.clear(); });
+// Fokus na grze – potrzebny, gdy plik jest otwarty w podglądzie (iframe), inaczej strzałki nie docierają
+ekran.tabIndex = 0;
+function dajFokus() { try { window.focus(); ekran.focus({ preventScroll: true }); } catch (err) {} }
+addEventListener('load', dajFokus);
+
+function strona(e) {
+  const r = ekran.getBoundingClientRect();
+  return (e.clientX - r.left) < r.width / 2 ? -1 : 1;
+}
+ekran.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  dajFokus();
+  if (e.pointerType === 'touch' && !dotykowe) { dotykowe = true; ustawRozmiar(); }
+  startDzwieku();
+  if (stan === 'start') { akcja(); return; }
+  if (stan === 'koniec') {
+    const r = ekran.getBoundingClientRect();
+    const x = e.clientX - r.left, y = e.clientY - r.top;   // piksele CSS
+    const p = przyciski.find(b => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h);
+    if (p) akcja(p.odNowa);
+    return;
+  }
+  if (e.pointerType === 'mouse' && !dotykowe) return;   // na komputerze sterujemy klawiaturą
+  dotyki.set(e.pointerId, strona(e));
+  if (ekran.setPointerCapture) ekran.setPointerCapture(e.pointerId);
+});
+ekran.addEventListener('pointermove', e => { if (dotyki.has(e.pointerId)) dotyki.set(e.pointerId, strona(e)); });
+['pointerup', 'pointercancel', 'pointerleave'].forEach(n => ekran.addEventListener(n, e => dotyki.delete(e.pointerId)));
+
+function pelnyEkran() {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+  else document.exitFullscreen && document.exitFullscreen();
+}
+
+function kierunek() {
+  let d = (klawisze.lewo ? -1 : 0) + (klawisze.prawo ? 1 : 0);
+  dotyki.forEach(v => { d += v; });
+  return Math.max(-1, Math.min(1, d));
+}
+
+// =====================================================================
+// AKTUALIZACJA
+// =====================================================================
+function aktualizuj(dt, t) {
+  platki.forEach(p => {
+    p.y += p.v * dt; p.x += Math.sin(t * 1.5 + p.faza) * 8 * dt;
+    if (p.y > SH) { p.y = -2; p.x = Math.random() * SW; }
+    if (p.x < 0) p.x += SW; if (p.x > SW) p.x -= SW;
+  });
+
+  if (blokada > 0) blokada -= dt;
+  if (bohater.skok > 0) bohater.skok = Math.max(0, bohater.skok - dt);
+  if (bohater.trzes > 0) bohater.trzes = Math.max(0, bohater.trzes - dt);
+
+  if (stan === 'gra') {
+    czas -= dt;
+    if (czas <= 0) { czas = 0; koniecGry(); }
+
+    const d = kierunek();
+    bohater.idzie = d !== 0;
+    bohater.x = Math.max(0, Math.min(SW - 32, bohater.x + d * Math.max(USTAWIENIA.predkoscBohatera, SW * 0.6) * dt));
+    if (bohater.idzie) bohater.anim += dt;
+
+    doSpadania -= dt;
+    if (doSpadania <= 0 && stan === 'gra') {
+      doSpadania = USTAWIENIA.coIleSpada * Math.sqrt(192 / SW) * (0.8 + Math.random() * 0.4);
+      const zly = Math.random() < USTAWIENIA.szansaNaZlaRzecz;
+      const w = zly ? 20 : 24;
+      const minelo = USTAWIENIA.czasGry - czas;
+      rzeczy.push({
+        x: Math.random() * (SW - w), y: -w, w, h: w, zly,
+        v: USTAWIENIA.spadanieMin + Math.random() * (USTAWIENIA.spadanieMax - USTAWIENIA.spadanieMin) + minelo * USTAWIENIA.przyspieszanie,
+        kolory: KOLORY_PREZENTOW[Math.floor(Math.random() * KOLORY_PREZENTOW.length)],
+      });
+    }
+
+    const hy = ZIEMIA - 30;
+    const bx1 = bohater.x + 4, bx2 = bohater.x + 28, by1 = hy + 6, by2 = hy + 32;
+    for (let i = rzeczy.length - 1; i >= 0; i--) {
+      const r = rzeczy[i];
+      r.y += r.v * dt;
+      const sx = r.x + r.w / 2, sy = r.y + r.h / 2;
+      if (r.x < bx2 && r.x + r.w > bx1 && r.y < by2 && r.y + r.h > by1) {
+        if (r.zly) {
+          wynik = Math.max(0, wynik - 1);
+          bohater.trzes = 0.5;
+          puf(sx, sy, '#33333d', 18);
+          napisy.push({ x: sx, y: sy - 6, tekst: '-1', kolor: '#ff5252', zycie: 0.9 });
+          dzwiekBum();
+        } else {
+          wynik++;
+          bohater.skok = 0.25;
+          puf(sx, sy, null, 30, ['#ffd54f', '#ffffff', r.kolory.r, '#7fe0ff']);
+          napisy.push({ x: sx, y: sy - 6, tekst: '+1', kolor: '#ffd54f', zycie: 0.9 });
+          dzwiekZlapania();
+        }
+        rzeczy.splice(i, 1);
+      } else if (r.y + r.h >= ZIEMIA + 4) {
+        puf(sx, ZIEMIA, '#ffffff', 8);
+        rzeczy.splice(i, 1);
+      }
+    }
+  }
+
+  for (let i = czastki.length - 1; i >= 0; i--) {
+    const c = czastki[i];
+    c.vy += 120 * dt; c.x += c.vx * dt; c.y += c.vy * dt; c.zycie -= dt;
+    if (c.zycie <= 0) czastki.splice(i, 1);
+  }
+  for (let i = napisy.length - 1; i >= 0; i--) {
+    const n = napisy[i];
+    n.y -= 28 * dt; n.zycie -= dt;
+    if (n.zycie <= 0) napisy.splice(i, 1);
+  }
+}
+
+// =====================================================================
+// RYSOWANIE
+// =====================================================================
+const CZCIONKA = 'system-ui, -apple-system, "Segoe UI", Roboto, Verdana, sans-serif';
+
+// Napis z cienkim obrysem i miękkim cieniem (piksele CSS)
+function tekst(t, x, y, rozmiar, kolor = '#ffffff', wyrownanie = 'center', grubosc = 800) {
+  ctx.font = `${grubosc} ${rozmiar}px ${CZCIONKA}`;
+  ctx.textAlign = wyrownanie; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.35)'; ctx.shadowBlur = rozmiar * 0.12; ctx.shadowOffsetY = rozmiar * 0.06;
+  ctx.lineWidth = Math.max(2, rozmiar / 7); ctx.strokeStyle = '#14203a';
+  ctx.strokeText(t, x, y);
+  ctx.restore();
+  ctx.fillStyle = kolor; ctx.fillText(t, x, y);
+}
+
+function szerokoscTekstu(t, rozmiar, grubosc = 800) {
+  ctx.font = `${grubosc} ${rozmiar}px ${CZCIONKA}`;
+  return ctx.measureText(t).width;
+}
+
+function zaokraglony(x, y, w, h, r) {
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h);
+}
+
+// Sprite w pikselach CSS, ale z całkowitym powiększeniem w pikselach urządzenia (ostre krawędzie)
+function spriteUI(sprite, klatka, x, y, wysokosc, paleta = null, obrys = null) {
+  const wiersze = sprite.klatki[0].length;
+  const skala = Math.max(1, Math.round(wysokosc * DPR / wiersze));
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const dx = Math.round(x * DPR), dy = Math.round(y * DPR);
+  if (obrys) rysujObrys(ctx, sprite, klatka, dx, dy, skala, obrys);
+  rysujSprite(ctx, sprite, klatka, dx, dy, skala, paleta);
+  ctx.restore();
+  return { w: sprite.klatki[0][0].length * skala / DPR, h: wiersze * skala / DPR };
+}
+
+function odmianaPunkt(n) {
+  if (n === 1) return 'punkt';
+  const j = n % 10, d = n % 100;
+  if (j >= 2 && j <= 4 && !(d >= 12 && d <= 14)) return 'punkty';
+  return 'punktów';
+}
+
+// „Pigułka” na górze ekranu: półprzezroczyste tło z zaokrągleniem
+function pigulka(x, y, w, h, kolor = 'rgba(10, 20, 50, 0.55)') {
+  zaokraglony(x, y, w, h, h / 2);
+  ctx.fillStyle = kolor; ctx.fill();
+  ctx.lineWidth = Math.max(1, 1.5 * U); ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)'; ctx.stroke();
+}
+
+function ikonaZegara(cx, cy, r, kolor) {
+  ctx.lineWidth = Math.max(2, r * 0.28); ctx.strokeStyle = kolor; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx, cy - r * 0.6); ctx.moveTo(cx, cy); ctx.lineTo(cx + r * 0.45, cy); ctx.stroke();
+  ctx.lineCap = 'butt';
+}
+
+// Ikona w liczniku: wyśrodkowana w kwadracie o boku `bok` (całkowite powiększenie)
+function ikonaUI(sprite, x, y, bok) {
+  const n = sprite.klatki[0].length;
+  const skala = Math.max(1, Math.floor(bok * DPR / n));
+  const rozmiar = n * skala / DPR;
+  spriteUI(sprite, 0, x + (bok - rozmiar) / 2, y + (bok - rozmiar) / 2, rozmiar);
+}
+
+// Dwa liczniki o identycznym wyglądzie: ikona po lewej, liczba po prawej, ta sama szerokość
+function licznik(x, y, w, h, sprite, wartosc, kolorTekstu, tlo) {
+  pigulka(x, y, w, h, tlo);
+  const bok = h * 0.62, pad = (h - bok) / 2;
+  ikonaUI(sprite, x + pad + 4 * U, y + pad, bok);
+  tekst(wartosc, x + w - pad - 8 * U, y + h / 2 + 1, h * 0.56, kolorTekstu, 'right');
+}
+
+function rysujHUD(t) {
+  const m = 14 * U, h = 46 * U, f = h * 0.56;
+  const tp = String(wynik), s = Math.ceil(czas), tc = String(s);
+  const w = h + Math.max(szerokoscTekstu(tp, f), szerokoscTekstu('00', f)) + 26 * U;   // obie pigułki tej samej szerokości
+  licznik(m, m, w, h, SPRITES.prezent, tp, '#ffd54f');
+  const koncowka = s <= 5;
+  const puls = koncowka ? Math.abs(Math.sin(t * 6)) : 0;
+  licznik(CW - m - w, m, w, h, SPRITES.zegar, tc, '#ffffff',
+          koncowka ? `rgba(200, 40, 40, ${0.6 + puls * 0.3})` : 'rgba(10, 20, 50, 0.55)');
+  if (runda > 1) {
+    const tr = 'RUNDA ' + runda, fr = 15 * U, wr = szerokoscTekstu(tr, fr) + 26 * U, hr = 30 * U;
+    pigulka(CW / 2 - wr / 2, m + (h - hr) / 2, wr, hr);
+    tekst(tr, CW / 2, m + h / 2 + 1, fr, '#7fe0ff');
+  }
+}
+
+// Strzałki na dole ekranu – tylko na telefonie i tablecie
+function rysujStrzalki() {
+  let d = 0; dotyki.forEach(v => { d += v; });
+  const w = Math.min(150 * U, CW * 0.36), h = 76 * U, y = CH - h - 20 * U, m = 18 * U;
+  [[-1, m], [1, CW - m - w]].forEach(([kier, x]) => {
+    const wcisniety = (kier < 0 && d < 0) || (kier > 0 && d > 0);
+    zaokraglony(x, y, w, h, 22 * U);
+    ctx.fillStyle = wcisniety ? 'rgba(255, 213, 79, 0.9)' : 'rgba(10, 20, 50, 0.45)'; ctx.fill();
+    ctx.lineWidth = 2.5 * U; ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)'; ctx.stroke();
+    const cx = x + w / 2, cy = y + h / 2, r = h * 0.24;
+    ctx.fillStyle = wcisniety ? '#14203a' : '#ffffff';
+    ctx.beginPath(); ctx.moveTo(cx + kier * r, cy); ctx.lineTo(cx - kier * r * 0.7, cy - r); ctx.lineTo(cx - kier * r * 0.7, cy + r); ctx.closePath(); ctx.fill();
+  });
+}
+
+// Duży przycisk z gradientem i efektem 3D
+function przycisk(b, aktywny) {
+  const r = b.h * 0.3, glebia = 5 * U;
+  ctx.globalAlpha = aktywny ? 1 : 0.45;
+  zaokraglony(b.x, b.y + glebia, b.w, b.h, r); ctx.fillStyle = b.ciemny; ctx.fill();
+  const g = ctx.createLinearGradient(0, b.y, 0, b.y + b.h);
+  g.addColorStop(0, b.jasny); g.addColorStop(1, b.kolor);
+  zaokraglony(b.x, b.y, b.w, b.h, r); ctx.fillStyle = g; ctx.fill();
+  ctx.lineWidth = 2 * U; ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)'; ctx.stroke();
+  // ikona + napis, razem wyśrodkowane
+  const ir = b.h * 0.2, odstep = 10 * U;
+  let f = b.h * 0.3;
+  while (f > 10 && ir * 2 + odstep + szerokoscTekstu(b.napis, f) > b.w - 24 * U) f -= 1;
+  const calosc = ir * 2 + odstep + szerokoscTekstu(b.napis, f);
+  const ix = b.x + (b.w - calosc) / 2 + ir, iy = b.y + b.h / 2;
+  ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#ffffff';
+  if (b.ikona === 'play') {
+    ctx.beginPath(); ctx.moveTo(ix - ir * 0.7, iy - ir); ctx.lineTo(ix + ir, iy); ctx.lineTo(ix - ir * 0.7, iy + ir); ctx.closePath(); ctx.fill();
+  } else {
+    ctx.lineWidth = ir * 0.38; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(ix, iy, ir * 0.85, -Math.PI * 0.3, Math.PI * 1.5); ctx.stroke();
+    ctx.lineCap = 'butt';
+    ctx.beginPath(); ctx.moveTo(ix + ir * 0.15, iy - ir * 1.35); ctx.lineTo(ix + ir * 0.95, iy - ir * 0.8); ctx.lineTo(ix + ir * 0.1, iy - ir * 0.3); ctx.closePath(); ctx.fill();
+  }
+  ctx.font = `800 ${f}px ${CZCIONKA}`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.25)'; ctx.fillText(b.napis, ix + ir + odstep, iy + 2 * U);
+  ctx.fillStyle = '#ffffff'; ctx.fillText(b.napis, ix + ir + odstep, iy);
+  ctx.globalAlpha = 1;
+}
+
+function rysuj(t) {
+  // --- świat w pikselach rysunku ---
+  sw.drawImage(tlo, 0, 0);
+  gwiazdy.forEach(g => { sw.fillStyle = Math.sin(t * 3 + g.faza) > 0.2 ? '#ffffff' : '#7f9bd0'; sw.fillRect(g.x, g.y, 1, 1); });
+  sw.fillStyle = '#ffffff';
+  platki.forEach(p => sw.fillRect(Math.floor(p.x), Math.floor(p.y), p.r, p.r));
+
+  rzeczy.forEach(r => {
+    if (r.zly) { rysujObrys(sw, SPRITES.wegielek, 0, r.x, r.y, 1, '#ffffff'); rysujSprite(sw, SPRITES.wegielek, 0, r.x, r.y); }
+    else rysujSprite(sw, SPRITES.prezent, 0, r.x, r.y, 1, r.kolory);
+  });
+
+  if (stan !== 'start') {
+    let hx = bohater.x, hy = ZIEMIA - 30;
+    if (bohater.skok > 0) hy -= Math.round(Math.sin(Math.PI * (1 - bohater.skok / 0.25)) * 8);
+    let widac = true;
+    if (bohater.trzes > 0) { hx += Math.floor(t * 40) % 2 ? 2 : -2; widac = Math.floor(t * 14) % 2 === 0; }
+    const klatka = bohater.idzie ? Math.floor(bohater.anim / 0.15) % 2 : 0;
+    sw.globalAlpha = widac ? 1 : 0.35;
+    rysujObrys(sw, SPRITES.bohater, klatka, hx, hy);
+    rysujSprite(sw, SPRITES.bohater, klatka, hx, hy);
+    sw.globalAlpha = 1;
+  }
+
+  czastki.forEach(c => { sw.fillStyle = c.kolor; sw.fillRect(Math.floor(c.x), Math.floor(c.y), 2, 2); });
+
+  // --- świat na ekran: całkowite powiększenie, bez rozmycia ---
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(swiat, 0, 0, SW * P, SH * P);
+
+  // --- interfejs w pikselach CSS, w pełnej rozdzielczości ekranu ---
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+  napisy.forEach(n => {
+    ctx.globalAlpha = Math.min(1, n.zycie * 2);
+    tekst(n.tekst, n.x * PX, n.y * PX, 34 * U, n.kolor);
+    ctx.globalAlpha = 1;
+  });
+
+  if (stan === 'gra') rysujHUD(t);
+  if (stan === 'gra' && dotykowe) rysujStrzalki();
+
+  if (stan === 'start') {
+    ctx.fillStyle = 'rgba(10, 20, 50, 0.35)'; ctx.fillRect(0, 0, CW, CH);
+    const cx = CW / 2, y0 = Math.max(24 * U, (CH - 470 * U) / 2 - 30 * U);
+    tekst('GRA DLA ELFÓW', cx, y0 + 24 * U, 40 * U, '#ffd54f', 'center', 900);
+    const bujanie = Math.abs(Math.sin(t * 4)) * -12 * U;
+    const hb = 150 * U;
+    spriteUI(SPRITES.bohater, Math.floor(t * 4) % 2, cx - hb / 2, y0 + 64 * U + bujanie, hb, null, '#0f1830');
+    // co łapiemy, czego unikamy
+    const yr = y0 + 250 * U, hs = 46 * U;
+    pigulka(cx - 150 * U, yr - 8 * U, 300 * U, hs + 16 * U);
+    spriteUI(SPRITES.prezent, 0, cx - 128 * U, yr, hs);
+    tekst('+1', cx - 70 * U, yr + hs / 2 + 1, 28 * U, '#ffd54f', 'left');
+    spriteUI(SPRITES.wegielek, 0, cx + 22 * U, yr + 3 * U, hs * 0.85, null, '#ffffff');
+    tekst('-1', cx + 78 * U, yr + hs / 2 + 1, 28 * U, '#ff6b6b', 'left');
+    ctx.globalAlpha = 0.55 + 0.45 * Math.abs(Math.sin(t * 2.5));
+    tekst(dotykowe ? 'Dotknij ekranu' : 'Naciśnij SPACJĘ', cx, y0 + 360 * U, 28 * U);
+    ctx.globalAlpha = 1;
+    tekst(dotykowe ? 'i steruj strzałkami na dole' : 'albo kliknij', cx, y0 + 398 * U, 17 * U, '#cfe0ff', 'center', 700);
+    if (!dotykowe) tekst('← →  ruch      M  muzyka      F  pełny ekran', cx, CH - 22 * U, 14 * U, '#ffffff', 'center', 700);
+  }
+
+  if (stan === 'koniec') {
+    ctx.fillStyle = 'rgba(10, 20, 50, 0.6)'; ctx.fillRect(0, 0, CW, CH);
+    const cx = CW / 2, y0 = Math.max(18 * U, (CH - 540 * U) / 2);
+    const skok = Math.abs(Math.sin(t * 5)) * -10 * U, hb = 84 * U;
+    spriteUI(SPRITES.bohater, Math.floor(t * 6) % 2, cx - hb / 2, y0 + skok, hb, null, '#0f1830');
+    tekst(runda > 1 ? 'WASZ WYNIK' : 'TWÓJ WYNIK', cx, y0 + 122 * U, 22 * U, '#7fe0ff', 'center', 800);
+    // najważniejsze: wielka liczba punktów z miękką poświatą
+    const ly = y0 + 235 * U, puls = 1 + Math.sin(t * 4) * 0.035;
+    const pg = ctx.createRadialGradient(cx, ly, 0, cx, ly, 120 * U);
+    pg.addColorStop(0, 'rgba(255, 213, 79, 0.35)'); pg.addColorStop(1, 'rgba(255, 213, 79, 0)');
+    ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(cx, ly, 120 * U, 0, Math.PI * 2); ctx.fill();
+    ctx.save(); ctx.translate(cx, ly); ctx.scale(puls, puls);
+    tekst(String(wynik), 0, 4 * U, 140 * U, '#ffd54f', 'center', 900);
+    ctx.restore();
+    tekst(odmianaPunkt(wynik).toUpperCase(), cx, y0 + 345 * U, 34 * U, '#ffd54f', 'center', 900);
+    if (runda > 1) tekst('po ' + runda + ' rundach', cx, y0 + 380 * U, 16 * U, '#ffffff', 'center', 700);
+    // dwa przyciski: GRAJ DALEJ (punkty liczą się dalej) i OD NOWA (punkty od zera)
+    const odstep = 14 * U, bw = Math.min(190 * U, (CW - 32 * U - odstep) / 2), bh = 62 * U, by = y0 + 410 * U;
+    przyciski = [
+      { x: cx - odstep / 2 - bw, y: by, w: bw, h: bh, odNowa: false, kolor: '#239150', jasny: '#3fc477', ciemny: '#145c33', napis: 'GRAJ DALEJ', ikona: 'play' },
+      { x: cx + odstep / 2, y: by, w: bw, h: bh, odNowa: true, kolor: '#c0392b', jasny: '#e8604f', ciemny: '#7a1f16', napis: 'OD NOWA', ikona: 'powtorz' },
+    ];
+    przyciski.forEach(b => przycisk(b, blokada <= 0));
+    if (!dotykowe) tekst('SPACJA – graj dalej      R – od nowa', cx, by + bh + 34 * U, 13 * U, '#cfe0ff', 'center', 700);
+  }
+
+  if (wyciszone) tekst('dźwięk wyłączony (M)', CW / 2, CH - 10 * U, 12 * U, '#cfe0ff', 'center', 700);
+}
+
+// =====================================================================
+// PĘTLA GRY
+// =====================================================================
+let ostatnio = performance.now(), czasCalkowity = 0;
+function petla(teraz) {
+  const dt = Math.max(0, Math.min(0.05, (teraz - ostatnio) / 1000));
+  ostatnio = teraz; czasCalkowity += dt;
+  aktualizuj(dt, czasCalkowity);
+  rysuj(czasCalkowity);
+  requestAnimationFrame(petla);
+}
+requestAnimationFrame(petla);
+</script>
+</body>
+</html>

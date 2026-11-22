@@ -1,1 +1,743 @@
-HELLO
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Gra dla elfów</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b1630; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
+  canvas { display: block; outline: none; width: 100vw; height: 100vh; width: 100dvw; height: 100dvh; image-rendering: pixelated; image-rendering: crisp-edges; }
+</style>
+</head>
+<body>
+<canvas id="gra"></canvas>
+<script>
+"use strict";
+/* =====================================================================
+   GRA DLA ELFÓW – baza do rozbudowy na zajęciach
+
+   Jak rozwijamy grę (każdy krok to dopisanie rysunku albo małej funkcji):
+     KROK 1  bohater        → SPRITES.bohater
+     KROK 2  tło            → rysujTlo(c) i animacjeTla(c, t)
+     KROK 3  dobre rzeczy   → SPRITES.dobre    (od razu włączają punkty, czas, start i koniec)
+     KROK 4  złe rzeczy     → SPRITES.zle
+     KROK 6  zmiany w tle   → rysujTlo(c) i animacjeTla(c, t)
+     KROK 7  muzyka         → MELODIA i BAS
+     KROK 8  efekt łapania  → poZlapaniu(r)
+
+   Silnika poniżej sekcji „DZIECI WYMYŚLAJĄ” zwykle nie trzeba ruszać.
+   ===================================================================== */
+
+// =====================================================================
+// USTAWIENIA – szybkość, czas, głośność
+// =====================================================================
+const USTAWIENIA = {
+  tytul: 'GRA DLA ELFÓW',
+  czasGry: 20,              // sekundy jednej rundy
+  predkoscBohatera: 124,    // piksele rysunku na sekundę
+  coIleSpada: 0.85,         // sekundy między spadającymi rzeczami
+  szansaNaZlaRzecz: 0.28,   // 0.28 = mniej więcej co czwarta rzecz jest zła
+  spadanieMin: 52,          // prędkość spadania (piksele rysunku na sekundę)
+  spadanieMax: 76,
+  przyspieszanie: 1.0,      // o ile szybciej spada z każdą sekundą rundy
+  glosnoscMuzyki: 0.07,
+  glosnoscEfektow: 0.18,
+};
+
+// =====================================================================
+// =====================  DZIECI WYMYŚLAJĄ  ============================
+// =====================================================================
+
+// RYSUNKI – pixel art: każda litera to kolor z palety, '.' = puste.
+// Bohater ok. 32×32, rzeczy 20×20 do 24×24. Światło z lewej góry, cień z prawej dołu, odblaski.
+const SPRITES = {
+  // KROK 1: bohater, dwie klatki chodu, np.
+  // bohater: { paleta: { b: '#8b5a2b', ... }, klatki: [ [ '....', ... ], [ ... ] ] },
+  bohater: null,
+
+  // KROK 3: dobre rzeczy (+1). Można dodać kilka rodzajów. Opcjonalnie `warianty`: lista innych palet (np. kolory prezentów).
+  dobre: [],
+
+  // KROK 4: złe rzeczy (-1).
+  zle: [],
+
+  // ikona czasu w liczniku (gotowa)
+  zegar: {
+    paleta: { k: '#1c2540', w: '#ffffff', s: '#cfd9ea', r: '#e53935' },
+    klatki: [[
+      '........................',
+      '..........rrrr..........',
+      '...........kk...........',
+      '........kkkkkkkk........',
+      '......kkkkkkkkkkkk......',
+      '.....kkkwwwkkwwwkkk.....',
+      '....kkkwwwwwwwwwwkkk....',
+      '...kkwwwwwwkkwwwwwwkk...',
+      '...kkwwwwwwkkwwwwwwkk...',
+      '..kkwwwwwwwkkwwwwwwskk..',
+      '..kkwwwwwwwkkwwwwwwskk..',
+      '..kwwwwwwwwkkwwwwwwssk..',
+      '.kkkwwwwwwwrrkkkkwwskkk.',
+      '.kkkwwwwwwwrrkkkkwwskkk.',
+      '.kkwwwwwwwwwwwwwwwwsskk.',
+      '..kwwwwwwwwwwwwwwwwssk..',
+      '..kkwwwwwwwwwwwwwwwskk..',
+      '..kkwwwwwwwwwwwwwwsskk..',
+      '...kkwwwwwwwwwwwwsskk...',
+      '...kkwwwwwwwwwwwssskk...',
+      '....kkkwsswwwwssskkk....',
+      '.....kkkssskkssskkk.....',
+      '......kkkkkkkkkkkk......',
+      '........kkkkkkkk........',
+    ]],
+  },
+};
+
+// KROK 2 i 6: TŁO – rysowane raz (i po zmianie rozmiaru okna) w pikselach rysunku.
+// c = kontekst płótna, SW × SH = rozmiar świata, ZIEMIA = linia, po której chodzi bohater.
+// Rysuj tak, żeby pasowało do każdej szerokości (np. powtarzaj elementy co 192 piksele).
+function rysujTlo(c) {
+  niebo(c, ['#0d1b3d', '#112350', '#162c62', '#1c3774', '#244386', '#2d5197', '#385fa6']);
+  ziemia(c, '#f4f8ff', '#ffffff', '#d4e3f5');   // śnieg
+}
+
+// Ruch w tle, rysowany w każdej klatce (np. padający śnieg, migające gwiazdki, latające sanie).
+function animacjeTla(c, t) {
+}
+
+// KROK 8: co się dzieje, gdy bohater złapie dobrą rzecz (r = rzecz, r.sx/r.sy = jej środek).
+// Gotowe klocki: napis(x, y, '+1', kolor), puf(x, y, ile, kolory), dzwiekZlapania(), bohater.skok = 0.25
+function poZlapaniu(r) {
+  wynik++;
+}
+
+// Co się dzieje, gdy bohater złapie złą rzecz. Wynik nigdy nie spada poniżej 0.
+function poZlejRzeczy(r) {
+  wynik = Math.max(0, wynik - 1);
+  bohater.trzes = 0.5;   // bohater się otrząsa
+  dzwiekBum();
+}
+
+// KROK 7: MUZYKA – nuty i długości w ćwierćnutach, np. [['E5',1],['E5',1],['E5',2], ...]. null = cisza.
+// BAS: lista taktów, w każdym dwie nuty (pierwsza i trzecia ćwierćnuta / druga i czwarta), np. [['C3','G3'], ...].
+let MELODIA = null;
+let BAS = null;
+const TEMPO = 0.4;   // długość ćwierćnuty w sekundach
+
+// =====================================================================
+// =======================  SILNIK GRY  ================================
+// =====================================================================
+
+let dotykowe = ('ontouchstart' in window) || (window.matchMedia && matchMedia('(pointer: coarse)').matches);
+let SW = 192, SH = 320;       // świat gry w pikselach rysunku
+let W = 768, H = 1280;        // płótno w pikselach urządzenia
+let CW = 768, CH = 1280;      // ekran w pikselach CSS
+let DPR = 1, P = 4, PX = 4;   // gęstość ekranu, piksele urządzenia i piksele CSS na piksel rysunku
+let U = 1;                    // jednostka interfejsu
+let ZIEMIA = 272;             // linia, po której chodzi bohater
+
+const ekran = document.getElementById('gra');
+const ctx = ekran.getContext('2d');
+const swiat = document.createElement('canvas');
+const sw = swiat.getContext('2d');
+const tlo = document.createElement('canvas');
+
+// ---------- rysowanie pixel artu ----------
+function wymiary(sprite) { return { w: sprite.klatki[0][0].length, h: sprite.klatki[0].length }; }
+
+function rysujSprite(c, sprite, klatka, x, y, skala = 1, innaPaleta = null) {
+  const n = sprite.klatki.length;
+  const wiersze = sprite.klatki[((klatka % n) + n) % n];
+  const paleta = innaPaleta ? Object.assign({}, sprite.paleta, innaPaleta) : sprite.paleta;
+  for (let j = 0; j < wiersze.length; j++) {
+    const w = wiersze[j];
+    for (let i = 0; i < w.length; i++) {
+      const kolor = paleta[w[i]];
+      if (!kolor) continue;
+      c.fillStyle = kolor;
+      c.fillRect(Math.round(x) + i * skala, Math.round(y) + j * skala, skala, skala);
+    }
+  }
+}
+
+// Obrys wokół rysunku – żeby był wyraźny na każdym tle
+function rysujObrys(c, sprite, klatka, x, y, skala = 1, kolor = '#0f1830') {
+  const n = sprite.klatki.length;
+  const wiersze = sprite.klatki[((klatka % n) + n) % n];
+  c.fillStyle = kolor;
+  for (let j = 0; j < wiersze.length; j++) {
+    for (let i = 0; i < wiersze[j].length; i++) {
+      if (!sprite.paleta[wiersze[j][i]]) continue;
+      for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+        c.fillRect(Math.round(x) + (i + dx) * skala, Math.round(y) + (j + dy) * skala, skala, skala);
+      }
+    }
+  }
+}
+
+// ---------- klocki do tła ----------
+function niebo(c, kolory) {
+  const pas = Math.ceil(ZIEMIA / kolory.length);
+  kolory.forEach((kol, i) => { c.fillStyle = kol; c.fillRect(0, i * pas, SW, pas + 1); });
+  c.fillStyle = kolory[kolory.length - 1]; c.fillRect(0, kolory.length * pas, SW, ZIEMIA);
+  for (let i = 1; i < kolory.length; i++) {   // delikatne przejścia między pasami
+    c.fillStyle = kolory[i];
+    for (let x = (i % 2); x < SW; x += 2) c.fillRect(x, i * pas - 1, 1, 1);
+    for (let x = ((i + 1) % 2); x < SW; x += 4) c.fillRect(x, i * pas - 2, 1, 1);
+  }
+}
+
+function ziemia(c, kolor, jasny, ciemny) {
+  c.fillStyle = kolor; c.fillRect(0, ZIEMIA, SW, SH - ZIEMIA);
+  c.fillStyle = jasny; c.fillRect(0, ZIEMIA, SW, 2);
+  for (let x = 0; x < SW; x++) {
+    const z = Math.round(2 * Math.sin(x / 11) + 1.5 * Math.sin(x / 4));
+    if (z > 0) c.fillRect(x, ZIEMIA - z, 1, z);
+  }
+  c.fillStyle = ciemny;
+  const los = n => { const v = Math.sin(n * 127.1) * 43758.5453; return v - Math.floor(v); };   // stałe „losowe” liczby
+  for (let i = 0; i < SW * 0.8; i++) {
+    const x = Math.floor(los(i) * SW), y = ZIEMIA + 6 + Math.floor(los(i + 999) * Math.max(1, SH - ZIEMIA - 8));
+    c.fillRect(x, y, 3, 1);
+  }
+}
+
+function stworzTlo() {
+  tlo.width = SW; tlo.height = SH;
+  rysujTlo(tlo.getContext('2d'));
+}
+
+// ---------- rozmiar ekranu ----------
+function ustawRozmiar() {
+  CW = innerWidth; CH = innerHeight;
+  DPR = Math.min(window.devicePixelRatio || 1, 3);
+  W = Math.round(CW * DPR); H = Math.round(CH * DPR);
+  P = Math.max(1, Math.min(Math.round(H / 320), Math.floor(W / 192)));   // całkowity rozmiar piksela rysunku = ostry obraz
+  PX = P / DPR;
+  SW = Math.ceil(W / P); SH = Math.ceil(H / P);
+  ZIEMIA = SH - (dotykowe ? 72 : 48);   // na dotyku wyższy pas ziemi na strzałki
+  U = Math.max(0.75, Math.min(2.2, Math.min(CW / 400, CH / 720)));
+  swiat.width = SW; swiat.height = SH;
+  ekran.width = W; ekran.height = H;
+  stworzTlo();
+  if (bohater) bohater.x = Math.max(0, Math.min(bohater.x, SW - szerBohatera()));
+}
+let czekajNaRozmiar = null;
+addEventListener('resize', () => { clearTimeout(czekajNaRozmiar); czekajNaRozmiar = setTimeout(ustawRozmiar, 100); });
+
+// =====================================================================
+// DŹWIĘK (Web Audio, bez plików)
+// =====================================================================
+let ac = null, glowny, gMuzyka, gEfekty, wyciszone = false;
+const NUTY = {};
+['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'].forEach((n, i) => {
+  for (let o = 2; o <= 6; o++) NUTY[n + o] = 440 * Math.pow(2, (i - 9) / 12 + (o - 4));
+});
+let iMel = 0, tMel = 0, iBas = 0, tBas = 0;
+
+function startDzwieku() {
+  if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  ac = new AC();
+  glowny = ac.createGain(); glowny.gain.value = wyciszone ? 0 : 1; glowny.connect(ac.destination);
+  gMuzyka = ac.createGain(); gMuzyka.gain.value = USTAWIENIA.glosnoscMuzyki; gMuzyka.connect(glowny);
+  gEfekty = ac.createGain(); gEfekty.gain.value = USTAWIENIA.glosnoscEfektow; gEfekty.connect(glowny);
+  tMel = tBas = ac.currentTime + 0.15;
+  setInterval(planujMuzyke, 50);
+}
+
+function ton(freq, start, dl, typ, glosnosc, cel) {
+  if (!freq) return;
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = typ; o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, start);
+  g.gain.linearRampToValueAtTime(glosnosc, start + 0.01);
+  g.gain.setValueAtTime(glosnosc, start + dl * 0.6);
+  g.gain.linearRampToValueAtTime(0.0001, start + dl * 0.95);
+  o.connect(g); g.connect(cel);
+  o.start(start); o.stop(start + dl);
+}
+
+function planujMuzyke() {
+  const doKiedy = ac.currentTime + 0.3;
+  if (!MELODIA || !MELODIA.length) { tMel = tBas = doKiedy; iMel = iBas = 0; return; }
+  while (tMel < doKiedy) {
+    const [n, d] = MELODIA[iMel % MELODIA.length];
+    ton(NUTY[n], tMel, d * TEMPO * 0.95, 'square', 0.35, gMuzyka);
+    tMel += d * TEMPO; iMel = (iMel + 1) % MELODIA.length;
+  }
+  while (BAS && BAS.length && tBas < doKiedy) {
+    const takt = Math.floor(iBas / 4) % BAS.length, bit = iBas % 4;
+    ton(NUTY[BAS[takt][bit % 2]], tBas, TEMPO * 0.9, 'triangle', 0.6, gMuzyka);
+    tBas += TEMPO; iBas++;
+  }
+}
+
+function dzwiekZlapania() {
+  if (!ac) return;
+  const t = ac.currentTime;
+  ton(988, t, 0.07, 'square', 0.5, gEfekty);
+  ton(1319, t + 0.07, 0.12, 'square', 0.5, gEfekty);
+}
+function dzwiekBum() {
+  if (!ac) return;
+  const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+  o.type = 'triangle';
+  o.frequency.setValueAtTime(200, t); o.frequency.exponentialRampToValueAtTime(60, t + 0.3);
+  g.gain.setValueAtTime(0.9, t); g.gain.linearRampToValueAtTime(0.0001, t + 0.3);
+  o.connect(g); g.connect(gEfekty); o.start(t); o.stop(t + 0.32);
+}
+function dzwiekStart() {
+  if (!ac) return;
+  const t = ac.currentTime;
+  [523, 659, 784, 1047].forEach((f, i) => ton(f, t + i * 0.08, 0.1, 'square', 0.45, gEfekty));
+}
+function dzwiekKoniec() {
+  if (!ac) return;
+  const t = ac.currentTime;
+  [784, 1047, 1319, 1568].forEach((f, i) => ton(f, t + i * 0.12, i === 3 ? 0.5 : 0.14, 'square', 0.45, gEfekty));
+}
+function przelaczDzwiek() {
+  wyciszone = !wyciszone;
+  if (glowny) glowny.gain.value = wyciszone ? 0 : 1;
+}
+
+// =====================================================================
+// STAN GRY
+// =====================================================================
+// 'czekamy' – nie ma jeszcze bohatera
+// 'spacer'  – jest bohater, ale nic nie spada (można chodzić)
+// 'start' | 'gra' | 'koniec' – prawdziwa gra (od kroku 3)
+let stan = 'czekamy';
+let wynik = 0, czas = USTAWIENIA.czasGry, doSpadania = 0, blokada = 0, runda = 1;
+let przyciski = [], rzeczy = [], czastki = [], napisy = [];
+const bohater = { x: 80, anim: 0, skok: 0, trzes: 0, idzie: false };
+
+function szerBohatera() { return SPRITES.bohater ? wymiary(SPRITES.bohater).w : 32; }
+function wysBohatera() { return SPRITES.bohater ? wymiary(SPRITES.bohater).h : 32; }
+function jestGra() { return !!SPRITES.bohater && SPRITES.dobre.length > 0; }
+
+function ustalStan() {
+  if (!SPRITES.bohater) stan = 'czekamy';
+  else if (!jestGra()) stan = 'spacer';
+  else if (stan === 'czekamy' || stan === 'spacer') stan = 'start';
+}
+
+// odNowa = true: punkty od zera; false: „Graj dalej” – kolejna runda, punkty liczą się dalej
+function nowaGra(odNowa = true) {
+  if (odNowa) { wynik = 0; runda = 1; } else runda++;
+  czas = USTAWIENIA.czasGry; doSpadania = 0.6;
+  rzeczy = []; czastki = []; napisy = [];
+  bohater.x = SW / 2 - szerBohatera() / 2; bohater.skok = 0; bohater.trzes = 0;
+  stan = 'gra';
+  dzwiekStart();
+}
+
+function koniecGry() {
+  stan = 'koniec'; blokada = 1.2;
+  rzeczy.forEach(r => puf(r.x + r.w / 2, r.y + r.h / 2, 8, ['#ffffff']));
+  rzeczy = [];
+  dzwiekKoniec();
+}
+
+function akcja(odNowa = false) {
+  if (stan === 'start') nowaGra(true);
+  else if (stan === 'koniec' && blokada <= 0) nowaGra(odNowa);
+}
+
+// ---------- gotowe klocki do efektów ----------
+function puf(x, y, ile, kolory = ['#ffffff']) {
+  for (let i = 0; i < ile; i++) {
+    const kat = Math.random() * Math.PI * 2, v = 30 + Math.random() * 60;
+    czastki.push({ x, y, vx: Math.cos(kat) * v, vy: Math.sin(kat) * v - 40, zycie: 0.6 + Math.random() * 0.3, kolor: kolory[i % kolory.length] });
+  }
+}
+function napis(x, y, tekstNapisu, kolor = '#ffd54f') {
+  napisy.push({ x, y, tekst: tekstNapisu, kolor, zycie: 0.9 });
+}
+
+// =====================================================================
+// STEROWANIE – strzałki / A D, dotyk lewej i prawej połowy ekranu
+// =====================================================================
+const klawisze = { lewo: false, prawo: false };
+const dotyki = new Map();
+
+// Klawisze: e.key + e.code (różne przeglądarki i układy klawiatury), także gdy gra jest w podglądzie (iframe)
+function klawisz(e) {
+  const k = e.key, c = e.code;
+  if (k === 'ArrowLeft' || k === 'Left' || c === 'ArrowLeft' || c === 'KeyA') return 'lewo';
+  if (k === 'ArrowRight' || k === 'Right' || c === 'ArrowRight' || c === 'KeyD') return 'prawo';
+  return null;
+}
+addEventListener('keydown', e => {
+  startDzwieku();
+  const k = e.key, kier = klawisz(e);
+  if (kier) { klawisze[kier] = true; e.preventDefault(); }
+  if (k === ' ' || k === 'Enter') { e.preventDefault(); akcja(false); }        // Spacja = start / graj dalej
+  if ((k === 'r' || k === 'R') && stan === 'koniec') akcja(true);              // R = od nowa
+  if (k === 'm' || k === 'M') przelaczDzwiek();
+  if (k === 'f' || k === 'F') pelnyEkran();
+});
+addEventListener('keyup', e => {
+  const kier = klawisz(e);
+  if (kier) klawisze[kier] = false;
+});
+// Gdy okno straci fokus, puść wszystkie klawisze (żeby bohater nie szedł sam)
+addEventListener('blur', () => { klawisze.lewo = klawisze.prawo = false; dotyki.clear(); });
+// Fokus na grze – potrzebny, gdy plik jest otwarty w podglądzie (iframe), inaczej strzałki nie docierają
+ekran.tabIndex = 0;
+function dajFokus() { try { window.focus(); ekran.focus({ preventScroll: true }); } catch (err) {} }
+addEventListener('load', dajFokus);
+
+function strona(e) {
+  const r = ekran.getBoundingClientRect();
+  return (e.clientX - r.left) < r.width / 2 ? -1 : 1;
+}
+ekran.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  dajFokus();
+  if (e.pointerType === 'touch' && !dotykowe) { dotykowe = true; ustawRozmiar(); }
+  startDzwieku();
+  if (stan === 'start') { akcja(); return; }
+  if (stan === 'koniec') {
+    const r = ekran.getBoundingClientRect();
+    const x = e.clientX - r.left, y = e.clientY - r.top;
+    const p = przyciski.find(b => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h);
+    if (p) akcja(p.odNowa);
+    return;
+  }
+  if (e.pointerType === 'mouse' && !dotykowe) return;   // na komputerze sterujemy klawiaturą
+  dotyki.set(e.pointerId, strona(e));
+  if (ekran.setPointerCapture) ekran.setPointerCapture(e.pointerId);
+});
+ekran.addEventListener('pointermove', e => { if (dotyki.has(e.pointerId)) dotyki.set(e.pointerId, strona(e)); });
+['pointerup', 'pointercancel', 'pointerleave'].forEach(n => ekran.addEventListener(n, e => dotyki.delete(e.pointerId)));
+
+function pelnyEkran() {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+  else document.exitFullscreen && document.exitFullscreen();
+}
+
+function kierunek() {
+  let d = (klawisze.lewo ? -1 : 0) + (klawisze.prawo ? 1 : 0);
+  dotyki.forEach(v => { d += v; });
+  return Math.max(-1, Math.min(1, d));
+}
+
+// =====================================================================
+// AKTUALIZACJA
+// =====================================================================
+function aktualizuj(dt) {
+  ustalStan();
+  if (blokada > 0) blokada -= dt;
+  if (bohater.skok > 0) bohater.skok = Math.max(0, bohater.skok - dt);
+  if (bohater.trzes > 0) bohater.trzes = Math.max(0, bohater.trzes - dt);
+
+  const chodzi = stan === 'spacer' || stan === 'gra';
+  if (chodzi) {
+    const d = kierunek();
+    bohater.idzie = d !== 0;
+    const v = Math.max(USTAWIENIA.predkoscBohatera, SW * 0.6);
+    bohater.x = Math.max(0, Math.min(SW - szerBohatera(), bohater.x + d * v * dt));
+    if (bohater.idzie) bohater.anim += dt;
+  } else bohater.idzie = false;
+
+  if (stan === 'gra') {
+    czas -= dt;
+    if (czas <= 0) { czas = 0; koniecGry(); }
+
+    doSpadania -= dt;
+    if (doSpadania <= 0 && stan === 'gra') {
+      doSpadania = USTAWIENIA.coIleSpada * Math.sqrt(192 / SW) * (0.8 + Math.random() * 0.4);
+      const zly = SPRITES.zle.length > 0 && Math.random() < USTAWIENIA.szansaNaZlaRzecz;
+      const lista = zly ? SPRITES.zle : SPRITES.dobre;
+      const sprite = lista[Math.floor(Math.random() * lista.length)];
+      const { w, h } = wymiary(sprite);
+      const minelo = USTAWIENIA.czasGry - czas;
+      rzeczy.push({
+        sprite, zly, w, h, x: Math.random() * (SW - w), y: -h,
+        v: USTAWIENIA.spadanieMin + Math.random() * (USTAWIENIA.spadanieMax - USTAWIENIA.spadanieMin) + minelo * USTAWIENIA.przyspieszanie,
+        paleta: sprite.warianty ? sprite.warianty[Math.floor(Math.random() * sprite.warianty.length)] : null,
+      });
+    }
+
+    const bw = szerBohatera(), bh = wysBohatera(), hy = ZIEMIA - bh + 2;
+    const bx1 = bohater.x + bw * 0.12, bx2 = bohater.x + bw * 0.88, by1 = hy + bh * 0.18, by2 = hy + bh;
+    for (let i = rzeczy.length - 1; i >= 0; i--) {
+      const r = rzeczy[i];
+      r.y += r.v * dt;
+      r.sx = r.x + r.w / 2; r.sy = r.y + r.h / 2;
+      if (r.x < bx2 && r.x + r.w > bx1 && r.y < by2 && r.y + r.h > by1) {
+        if (r.zly) poZlejRzeczy(r); else poZlapaniu(r);
+        rzeczy.splice(i, 1);
+      } else if (r.y + r.h >= ZIEMIA + 4) {
+        puf(r.sx, ZIEMIA, 8, ['#ffffff']);
+        rzeczy.splice(i, 1);
+      }
+    }
+  }
+
+  for (let i = czastki.length - 1; i >= 0; i--) {
+    const c = czastki[i];
+    c.vy += 120 * dt; c.x += c.vx * dt; c.y += c.vy * dt; c.zycie -= dt;
+    if (c.zycie <= 0) czastki.splice(i, 1);
+  }
+  for (let i = napisy.length - 1; i >= 0; i--) {
+    const n = napisy[i];
+    n.y -= 28 * dt; n.zycie -= dt;
+    if (n.zycie <= 0) napisy.splice(i, 1);
+  }
+}
+
+// =====================================================================
+// INTERFEJS – piksele CSS, pełna rozdzielczość ekranu
+// =====================================================================
+const CZCIONKA = 'system-ui, -apple-system, "Segoe UI", Roboto, Verdana, sans-serif';
+
+function tekst(t, x, y, rozmiar, kolor = '#ffffff', wyrownanie = 'center', grubosc = 800) {
+  ctx.font = `${grubosc} ${rozmiar}px ${CZCIONKA}`;
+  ctx.textAlign = wyrownanie; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.35)'; ctx.shadowBlur = rozmiar * 0.12; ctx.shadowOffsetY = rozmiar * 0.06;
+  ctx.lineWidth = Math.max(2, rozmiar / 7); ctx.strokeStyle = '#14203a';
+  ctx.strokeText(t, x, y);
+  ctx.restore();
+  ctx.fillStyle = kolor; ctx.fillText(t, x, y);
+}
+
+function szerokoscTekstu(t, rozmiar, grubosc = 800) {
+  ctx.font = `${grubosc} ${rozmiar}px ${CZCIONKA}`;
+  return ctx.measureText(t).width;
+}
+
+function zaokraglony(x, y, w, h, r) {
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h);
+}
+
+// Sprite w interfejsie: pozycja w pikselach CSS, całkowite powiększenie w pikselach urządzenia
+function spriteUI(sprite, klatka, x, y, wysokosc, paleta = null, obrys = null) {
+  const { w, h } = wymiary(sprite);
+  const skala = Math.max(1, Math.round(wysokosc * DPR / h));
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const dx = Math.round(x * DPR), dy = Math.round(y * DPR);
+  if (obrys) rysujObrys(ctx, sprite, klatka, dx, dy, skala, obrys);
+  rysujSprite(ctx, sprite, klatka, dx, dy, skala, paleta);
+  ctx.restore();
+  return { w: w * skala / DPR, h: h * skala / DPR };
+}
+
+// Ikona wyśrodkowana w kwadracie o boku `bok`
+function ikonaUI(sprite, x, y, bok) {
+  const { w, h } = wymiary(sprite);
+  const skala = Math.max(1, Math.floor(bok * DPR / Math.max(w, h)));
+  const sw_ = w * skala / DPR, sh_ = h * skala / DPR;
+  spriteUI(sprite, 0, x + (bok - sw_) / 2, y + (bok - sh_) / 2, sh_);
+}
+
+function odmianaPunkt(n) {
+  if (n === 1) return 'punkt';
+  const j = n % 10, d = n % 100;
+  if (j >= 2 && j <= 4 && !(d >= 12 && d <= 14)) return 'punkty';
+  return 'punktów';
+}
+
+function pigulka(x, y, w, h, kolor = 'rgba(10, 20, 50, 0.55)') {
+  zaokraglony(x, y, w, h, h / 2);
+  ctx.fillStyle = kolor; ctx.fill();
+  ctx.lineWidth = Math.max(1, 1.5 * U); ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)'; ctx.stroke();
+}
+
+// Licznik: ikona po lewej, liczba po prawej
+function licznik(x, y, w, h, sprite, wartosc, kolorTekstu, tloPigulki) {
+  pigulka(x, y, w, h, tloPigulki);
+  const bok = h * 0.62, pad = (h - bok) / 2;
+  ikonaUI(sprite, x + pad + 4 * U, y + pad, bok);
+  tekst(wartosc, x + w - pad - 8 * U, y + h / 2 + 1, h * 0.56, kolorTekstu, 'right');
+}
+
+function rysujHUD(t) {
+  const m = 14 * U, h = 46 * U, f = h * 0.56;
+  const tp = String(wynik), s = Math.ceil(czas), tc = String(s);
+  const w = h + Math.max(szerokoscTekstu(tp, f), szerokoscTekstu('00', f)) + 26 * U;   // oba liczniki tej samej szerokości
+  licznik(m, m, w, h, SPRITES.dobre[0], tp, '#ffd54f');
+  const koncowka = s <= 5, puls = koncowka ? Math.abs(Math.sin(t * 6)) : 0;
+  licznik(CW - m - w, m, w, h, SPRITES.zegar, tc, '#ffffff',
+          koncowka ? `rgba(200, 40, 40, ${0.6 + puls * 0.3})` : 'rgba(10, 20, 50, 0.55)');
+  if (runda > 1) {
+    const tr = 'RUNDA ' + runda, fr = 15 * U, wr = szerokoscTekstu(tr, fr) + 26 * U, hr = 30 * U;
+    pigulka(CW / 2 - wr / 2, m + (h - hr) / 2, wr, hr);
+    tekst(tr, CW / 2, m + h / 2 + 1, fr, '#7fe0ff');
+  }
+}
+
+// Strzałki na dole ekranu – tylko na telefonie i tablecie
+function rysujStrzalki() {
+  let d = 0; dotyki.forEach(v => { d += v; });
+  const w = Math.min(150 * U, CW * 0.36), h = 76 * U, y = CH - h - 20 * U, m = 18 * U;
+  [[-1, m], [1, CW - m - w]].forEach(([kier, x]) => {
+    const wcisniety = (kier < 0 && d < 0) || (kier > 0 && d > 0);
+    zaokraglony(x, y, w, h, 22 * U);
+    ctx.fillStyle = wcisniety ? 'rgba(255, 213, 79, 0.9)' : 'rgba(10, 20, 50, 0.45)'; ctx.fill();
+    ctx.lineWidth = 2.5 * U; ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)'; ctx.stroke();
+    const cx = x + w / 2, cy = y + h / 2, r = h * 0.24;
+    ctx.fillStyle = wcisniety ? '#14203a' : '#ffffff';
+    ctx.beginPath(); ctx.moveTo(cx + kier * r, cy); ctx.lineTo(cx - kier * r * 0.7, cy - r); ctx.lineTo(cx - kier * r * 0.7, cy + r); ctx.closePath(); ctx.fill();
+  });
+}
+
+// Duży przycisk z gradientem i efektem 3D; napis zmniejsza się, żeby się zmieścił
+function przycisk(b, aktywny) {
+  const r = b.h * 0.3, glebia = 5 * U;
+  ctx.globalAlpha = aktywny ? 1 : 0.45;
+  zaokraglony(b.x, b.y + glebia, b.w, b.h, r); ctx.fillStyle = b.ciemny; ctx.fill();
+  const g = ctx.createLinearGradient(0, b.y, 0, b.y + b.h);
+  g.addColorStop(0, b.jasny); g.addColorStop(1, b.kolor);
+  zaokraglony(b.x, b.y, b.w, b.h, r); ctx.fillStyle = g; ctx.fill();
+  ctx.lineWidth = 2 * U; ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)'; ctx.stroke();
+  const ir = b.h * 0.2, odstep = 10 * U;
+  let f = b.h * 0.3;
+  while (f > 10 && ir * 2 + odstep + szerokoscTekstu(b.napis, f) > b.w - 24 * U) f -= 1;
+  const calosc = ir * 2 + odstep + szerokoscTekstu(b.napis, f);
+  const ix = b.x + (b.w - calosc) / 2 + ir, iy = b.y + b.h / 2;
+  ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#ffffff';
+  if (b.ikona === 'play') {
+    ctx.beginPath(); ctx.moveTo(ix - ir * 0.7, iy - ir); ctx.lineTo(ix + ir, iy); ctx.lineTo(ix - ir * 0.7, iy + ir); ctx.closePath(); ctx.fill();
+  } else {
+    ctx.lineWidth = ir * 0.38; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(ix, iy, ir * 0.85, -Math.PI * 0.3, Math.PI * 1.5); ctx.stroke();
+    ctx.lineCap = 'butt';
+    ctx.beginPath(); ctx.moveTo(ix + ir * 0.15, iy - ir * 1.35); ctx.lineTo(ix + ir * 0.95, iy - ir * 0.8); ctx.lineTo(ix + ir * 0.1, iy - ir * 0.3); ctx.closePath(); ctx.fill();
+  }
+  ctx.font = `800 ${f}px ${CZCIONKA}`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.25)'; ctx.fillText(b.napis, ix + ir + odstep, iy + 2 * U);
+  ctx.fillStyle = '#ffffff'; ctx.fillText(b.napis, ix + ir + odstep, iy);
+  ctx.globalAlpha = 1;
+}
+
+// =====================================================================
+// RYSOWANIE
+// =====================================================================
+function rysuj(t) {
+  // --- świat w pikselach rysunku ---
+  sw.drawImage(tlo, 0, 0);
+  animacjeTla(sw, t);
+
+  rzeczy.forEach(r => {
+    if (r.zly) rysujObrys(sw, r.sprite, 0, r.x, r.y, 1, '#ffffff');
+    rysujSprite(sw, r.sprite, 0, r.x, r.y, 1, r.paleta);
+  });
+
+  if (SPRITES.bohater && stan !== 'start') {
+    const bh = wysBohatera();
+    let hx = bohater.x, hy = ZIEMIA - bh + 2;
+    if (bohater.skok > 0) hy -= Math.round(Math.sin(Math.PI * (1 - bohater.skok / 0.25)) * 8);
+    let widac = true;
+    if (bohater.trzes > 0) { hx += Math.floor(t * 40) % 2 ? 2 : -2; widac = Math.floor(t * 14) % 2 === 0; }
+    const klatka = bohater.idzie ? Math.floor(bohater.anim / 0.15) % 2 : 0;
+    sw.globalAlpha = widac ? 1 : 0.35;
+    rysujObrys(sw, SPRITES.bohater, klatka, hx, hy);
+    rysujSprite(sw, SPRITES.bohater, klatka, hx, hy);
+    sw.globalAlpha = 1;
+  }
+
+  czastki.forEach(c => { sw.fillStyle = c.kolor; sw.fillRect(Math.floor(c.x), Math.floor(c.y), 2, 2); });
+
+  // --- świat na ekran: całkowite powiększenie, bez rozmycia ---
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(swiat, 0, 0, SW * P, SH * P);
+
+  // --- interfejs ---
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+  napisy.forEach(n => {
+    ctx.globalAlpha = Math.min(1, n.zycie * 2);
+    tekst(n.tekst, n.x * PX, n.y * PX, 34 * U, n.kolor);
+    ctx.globalAlpha = 1;
+  });
+
+  if (stan === 'czekamy') {
+    const cx = CW / 2, cy = CH * 0.42;
+    tekst(USTAWIENIA.tytul, cx, cy, 40 * U, '#ffd54f', 'center', 900);
+    ctx.globalAlpha = 0.55 + 0.45 * Math.abs(Math.sin(t * 2));
+    tekst('Czekamy na bohatera…', cx, cy + 50 * U, 20 * U, '#ffffff', 'center', 700);
+    ctx.globalAlpha = 1;
+  }
+
+  if ((stan === 'spacer' || stan === 'gra') && dotykowe) rysujStrzalki();
+  if (stan === 'gra') rysujHUD(t);
+
+  if (stan === 'start') {
+    ctx.fillStyle = 'rgba(10, 20, 50, 0.35)'; ctx.fillRect(0, 0, CW, CH);
+    const cx = CW / 2, y0 = Math.max(24 * U, (CH - 470 * U) / 2 - 30 * U);
+    tekst(USTAWIENIA.tytul, cx, y0 + 24 * U, 40 * U, '#ffd54f', 'center', 900);
+    const bujanie = Math.abs(Math.sin(t * 4)) * -12 * U, hb = 150 * U;
+    const wb = hb * szerBohatera() / wysBohatera();
+    spriteUI(SPRITES.bohater, Math.floor(t * 4) % 2, cx - wb / 2, y0 + 64 * U + bujanie, hb, null, '#0f1830');
+    // co łapiemy (+1), czego unikamy (-1)
+    const yr = y0 + 250 * U, hs = 46 * U;
+    const jestZla = SPRITES.zle.length > 0;
+    const szer = jestZla ? 300 * U : 160 * U;
+    pigulka(cx - szer / 2, yr - 8 * U, szer, hs + 16 * U);
+    const xd = jestZla ? cx - 128 * U : cx - 58 * U;
+    ikonaUI(SPRITES.dobre[0], xd, yr, hs);
+    tekst('+1', xd + 58 * U, yr + hs / 2 + 1, 28 * U, '#ffd54f', 'left');
+    if (jestZla) {
+      ikonaUI(SPRITES.zle[0], cx + 20 * U, yr, hs);
+      tekst('-1', cx + 78 * U, yr + hs / 2 + 1, 28 * U, '#ff6b6b', 'left');
+    }
+    ctx.globalAlpha = 0.55 + 0.45 * Math.abs(Math.sin(t * 2.5));
+    tekst(dotykowe ? 'Dotknij ekranu' : 'Naciśnij SPACJĘ', cx, y0 + 360 * U, 28 * U);
+    ctx.globalAlpha = 1;
+    tekst(dotykowe ? 'i steruj strzałkami na dole' : 'albo kliknij', cx, y0 + 398 * U, 17 * U, '#cfe0ff', 'center', 700);
+    if (!dotykowe) tekst('← →  ruch      M  muzyka      F  pełny ekran', cx, CH - 22 * U, 14 * U, '#ffffff', 'center', 700);
+  }
+
+  if (stan === 'koniec') {
+    ctx.fillStyle = 'rgba(10, 20, 50, 0.6)'; ctx.fillRect(0, 0, CW, CH);
+    const cx = CW / 2, y0 = Math.max(18 * U, (CH - 540 * U) / 2);
+    const skok = Math.abs(Math.sin(t * 5)) * -10 * U, hb = 84 * U, wb = hb * szerBohatera() / wysBohatera();
+    spriteUI(SPRITES.bohater, Math.floor(t * 6) % 2, cx - wb / 2, y0 + skok, hb, null, '#0f1830');
+    tekst(runda > 1 ? 'WASZ WYNIK' : 'TWÓJ WYNIK', cx, y0 + 122 * U, 22 * U, '#7fe0ff');
+    // najważniejsze: wielka liczba punktów z miękką poświatą
+    const ly = y0 + 235 * U, puls = 1 + Math.sin(t * 4) * 0.035;
+    const pg = ctx.createRadialGradient(cx, ly, 0, cx, ly, 120 * U);
+    pg.addColorStop(0, 'rgba(255, 213, 79, 0.35)'); pg.addColorStop(1, 'rgba(255, 213, 79, 0)');
+    ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(cx, ly, 120 * U, 0, Math.PI * 2); ctx.fill();
+    ctx.save(); ctx.translate(cx, ly); ctx.scale(puls, puls);
+    tekst(String(wynik), 0, 4 * U, 140 * U, '#ffd54f', 'center', 900);
+    ctx.restore();
+    tekst(odmianaPunkt(wynik).toUpperCase(), cx, y0 + 345 * U, 34 * U, '#ffd54f', 'center', 900);
+    if (runda > 1) tekst('po ' + runda + ' rundach', cx, y0 + 380 * U, 16 * U, '#ffffff', 'center', 700);
+    // GRAJ DALEJ (punkty liczą się dalej) i OD NOWA (punkty od zera)
+    const odstep = 14 * U, bw = Math.min(190 * U, (CW - 32 * U - odstep) / 2), bh = 62 * U, by = y0 + 410 * U;
+    przyciski = [
+      { x: cx - odstep / 2 - bw, y: by, w: bw, h: bh, odNowa: false, kolor: '#239150', jasny: '#3fc477', ciemny: '#145c33', napis: 'GRAJ DALEJ', ikona: 'play' },
+      { x: cx + odstep / 2, y: by, w: bw, h: bh, odNowa: true, kolor: '#c0392b', jasny: '#e8604f', ciemny: '#7a1f16', napis: 'OD NOWA', ikona: 'powtorz' },
+    ];
+    przyciski.forEach(b => przycisk(b, blokada <= 0));
+    if (!dotykowe) tekst('SPACJA – graj dalej      R – od nowa', cx, by + bh + 34 * U, 13 * U, '#cfe0ff', 'center', 700);
+  }
+
+  if (wyciszone) tekst('dźwięk wyłączony (M)', CW / 2, CH - 10 * U, 12 * U, '#cfe0ff', 'center', 700);
+}
+
+// =====================================================================
+// PĘTLA GRY
+// =====================================================================
+ustawRozmiar();
+bohater.x = SW / 2 - szerBohatera() / 2;
+let ostatnio = performance.now(), czasCalkowity = 0;
+function petla(teraz) {
+  const dt = Math.max(0, Math.min(0.05, (teraz - ostatnio) / 1000));
+  ostatnio = teraz; czasCalkowity += dt;
+  aktualizuj(dt);
+  rysuj(czasCalkowity);
+  requestAnimationFrame(petla);
+}
+requestAnimationFrame(petla);
+</script>
+</body>
+</html>
