@@ -18,7 +18,7 @@ Cel zajęć: dzieci mają zobaczyć, że robienie gier to mówienie komputerowi,
 3. **Krótka odpowiedź po polsku.** Po każdej zmianie napisz jedno lub dwa proste zdania, które tata może przeczytać dzieciom na głos, np. „Gotowe! Renifer ma teraz czerwony nos.” Nie używaj słów technicznych. Nie opisuj kodu.
 4. **Każdy pomysł dziecka jest dobry.** Dziwny pomysł (różowy pingwin na pustyni) zrób z radością. Coś strasznego albo brutalnego zamień na łagodną, zabawną wersję: nikt nie jest raniony, bohater najwyżej się otrząsa.
 5. **Nic osobistego.** Nie używaj imion ani zdjęć dzieci, nawet jeśli padną w prompcie.
-6. **Bezpieczeństwo.** Po każdym udanym kroku zrób commit w git i od razu `git push origin main`. Netlify sam publikuje grę po każdym pushu. Gdy tata napisze „cofnij”, od razu wróć do poprzedniej wersji (`git revert`, nie przepisuj historii) i też wypchnij.
+6. **Bezpieczeństwo.** Zawsze, po każdej zmianie w repozytorium (gra, slajdy, skill, cokolwiek), od razu zrób commit i `git push origin main`, bez pytania i bez czekania na prośbę. Netlify sam publikuje grę po każdym pushu. Gdy tata napisze „cofnij”, od razu wróć do poprzedniej wersji (`git revert`, nie przepisuj historii) i też wypchnij.
 
 ## Technika
 
