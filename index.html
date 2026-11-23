@@ -409,6 +409,42 @@ function choinkaLampki() {
   return l;
 }
 
+// DUŻE PREZENTY NA ZIEMI – renifer musi przez nie przeskoczyć (↑ / W / Spacja, na dotyku: górna połowa ekranu)
+const PRZESZKODY = [
+  { poz: 0.22, w: 28, h: 24, kolor: '#e53935', jasny: '#ff7a6e', ciemny: '#a31f1c' },
+  { poz: 0.66, w: 30, h: 26, kolor: '#1e88e5', jasny: '#6ab8ff', ciemny: '#11559a' },
+];
+function przeszkody() { return PRZESZKODY.map(p => ({ x: Math.round(SW * p.poz), w: p.w, h: p.h, p })); }
+function rysujPrzeszkody(c) {
+  przeszkody().forEach(({ x, w, h, p }) => {
+    const y = ZIEMIA - h + 2;
+    c.fillStyle = '#0f1830'; c.fillRect(x - 1, y - 1, w + 2, h + 2);          // obrys
+    c.fillStyle = p.kolor; c.fillRect(x, y, w, h);
+    c.fillStyle = p.jasny; c.fillRect(x, y, 3, h); c.fillRect(x, y, w, 2);     // światło
+    c.fillStyle = p.ciemny; c.fillRect(x + w - 4, y + 2, 4, h - 2); c.fillRect(x, y + 6, w, 1);   // cień i wieczko
+    const sx = x + Math.floor(w / 2) - 2;
+    c.fillStyle = '#ffd54f'; c.fillRect(sx, y, 5, h); c.fillRect(x, y + 12, w, 4);   // wstążka
+    c.fillStyle = '#e0a800'; c.fillRect(sx + 4, y, 1, h); c.fillRect(x, y + 15, w, 1);
+    c.fillStyle = '#fff6c9'; c.fillRect(sx, y, 1, h);
+    // kokarda
+    c.fillStyle = '#0f1830'; c.fillRect(sx - 7, y - 8, 19, 8);
+    c.fillStyle = '#ffd54f'; c.fillRect(sx - 6, y - 7, 7, 6); c.fillRect(sx + 4, y - 7, 7, 6);
+    c.fillStyle = '#e0a800'; c.fillRect(sx - 4, y - 5, 3, 2); c.fillRect(sx + 6, y - 5, 3, 2);
+    c.fillStyle = '#ffd54f'; c.fillRect(sx, y - 4, 5, 4);
+    c.fillStyle = '#fff6c9'; c.fillRect(sx - 6, y - 7, 2, 1);
+    c.fillStyle = 'rgba(255,255,255,0.9)'; c.fillRect(x + 2, y - 1, w - 4, 1);   // śnieg na wieczku
+  });
+}
+function skacz() {
+  if (bohater.wy <= bohater.podloga + 0.5 && bohater.vy === 0) { bohater.vy = 190; dzwiekSkok(); }
+}
+function dzwiekSkok() {
+  if (!ac) return;
+  const t = ac.currentTime;
+  ton(523, t, 0.06, 'square', 0.35, gEfekty);
+  ton(784, t + 0.06, 0.08, 'square', 0.35, gEfekty);
+}
+
 // KROK 8: co się dzieje, gdy bohater złapie dobrą rzecz (r = rzecz, r.sx/r.sy = jej środek).
 // Gotowe klocki: napis(x, y, '+1', kolor), puf(x, y, ile, kolory), dzwiekZlapania(), bohater.skok = 0.25
 function poZlapaniu(r) {
@@ -616,7 +652,7 @@ function przelaczDzwiek() {
 let stan = 'czekamy';
 let wynik = 0, czas = USTAWIENIA.czasGry, doSpadania = 0, blokada = 0, runda = 1;
 let przyciski = [], rzeczy = [], czastki = [], napisy = [];
-const bohater = { x: 80, anim: 0, skok: 0, trzes: 0, idzie: false };
+const bohater = { x: 80, anim: 0, skok: 0, trzes: 0, idzie: false, wy: 0, vy: 0, podloga: 0 };
 
 function szerBohatera() { return SPRITES.bohater ? wymiary(SPRITES.bohater).w : 32; }
 function wysBohatera() { return SPRITES.bohater ? wymiary(SPRITES.bohater).h : 32; }
@@ -633,7 +669,7 @@ function nowaGra(odNowa = true) {
   if (odNowa) { wynik = 0; runda = 1; } else runda++;
   czas = USTAWIENIA.czasGry; doSpadania = 0.6;
   rzeczy = []; czastki = []; napisy = [];
-  bohater.x = SW / 2 - szerBohatera() / 2; bohater.skok = 0; bohater.trzes = 0;
+  bohater.x = SW / 2 - szerBohatera() / 2; bohater.skok = 0; bohater.trzes = 0; bohater.wy = 0; bohater.vy = 0;
   stan = 'gra';
   dzwiekStart();
 }
@@ -678,7 +714,9 @@ addEventListener('keydown', e => {
   startDzwieku();
   const k = e.key, kier = klawisz(e);
   if (kier) { klawisze[kier] = true; e.preventDefault(); }
-  if (k === ' ' || k === 'Enter') { e.preventDefault(); akcja(false); }        // Spacja = start / graj dalej
+  const skok = k === 'ArrowUp' || k === 'Up' || e.code === 'ArrowUp' || e.code === 'KeyW' || k === ' ';
+  if (skok && (stan === 'spacer' || stan === 'gra')) { e.preventDefault(); skacz(); }
+  else if (k === ' ' || k === 'Enter') { e.preventDefault(); akcja(false); }        // Spacja = start / graj dalej
   if (k === 'F5' || k === 'Escape' || k === '.' || k === 'b' || k === 'B') { e.preventDefault(); akcja(false); } // pilot: start / ekran = start / graj dalej
   if ((k === 'r' || k === 'R') && stan === 'koniec') akcja(true);              // R = od nowa
   if (k === 'm' || k === 'M') przelaczDzwiek();
@@ -713,6 +751,7 @@ ekran.addEventListener('pointerdown', e => {
     return;
   }
   if (e.pointerType === 'mouse' && !dotykowe) return;   // na komputerze sterujemy klawiaturą
+  { const r = ekran.getBoundingClientRect(); if (e.clientY - r.top < r.height / 2) { skacz(); return; } }   // górna połowa = skok
   dotyki.set(e.pointerId, strona(e));
   if (ekran.setPointerCapture) ekran.setPointerCapture(e.pointerId);
 });
@@ -744,8 +783,22 @@ function aktualizuj(dt) {
     const d = kierunek();
     bohater.idzie = d !== 0;
     const v = Math.max(USTAWIENIA.predkoscBohatera, SW * 0.6);
-    bohater.x = Math.max(0, Math.min(SW - szerBohatera(), bohater.x + d * v * dt));
+    const bw0 = szerBohatera(), stary = bohater.x;
+    let nowy = Math.max(0, Math.min(SW - bw0, bohater.x + d * v * dt));
+    const nad = (x, g) => x + bw0 * 0.88 > g.x && x + bw0 * 0.12 < g.x + g.w;
+    for (const g of przeszkody()) {   // prezent na ziemi zatrzymuje, chyba że renifer jest nad nim
+      if (bohater.wy < g.h - 2 && nad(nowy, g) && !nad(stary, g)) nowy = stary;
+    }
+    bohater.x = nowy;
     if (bohater.idzie) bohater.anim += dt;
+    // skok i lądowanie (także na prezencie)
+    bohater.podloga = 0;
+    for (const g of przeszkody()) if (nad(bohater.x, g) && bohater.wy >= g.h - 3) bohater.podloga = Math.max(bohater.podloga, g.h - 1);
+    if (bohater.vy !== 0 || bohater.wy > bohater.podloga) {
+      bohater.vy -= 560 * dt;
+      bohater.wy += bohater.vy * dt;
+      if (bohater.wy <= bohater.podloga) { bohater.wy = bohater.podloga; bohater.vy = 0; }
+    }
   } else bohater.idzie = false;
 
   if (stan === 'gra') {
@@ -767,7 +820,7 @@ function aktualizuj(dt) {
       });
     }
 
-    const bw = szerBohatera(), bh = wysBohatera(), hy = ZIEMIA - bh + 2;
+    const bw = szerBohatera(), bh = wysBohatera(), hy = ZIEMIA - bh + 2 - Math.round(bohater.wy);
     const bx1 = bohater.x + bw * 0.12, bx2 = bohater.x + bw * 0.88, by1 = hy + bh * 0.18, by2 = hy + bh;
     for (let i = rzeczy.length - 1; i >= 0; i--) {
       const r = rzeczy[i];
@@ -934,9 +987,10 @@ function rysuj(t) {
     rysujSprite(sw, r.sprite, 0, r.x, r.y, 1, r.paleta);
   });
 
+  if (stan !== 'start' && stan !== 'czekamy') rysujPrzeszkody(sw);
   if (SPRITES.bohater && stan !== 'start') {
     const bh = wysBohatera();
-    let hx = bohater.x, hy = ZIEMIA - bh + 2;
+    let hx = bohater.x, hy = ZIEMIA - bh + 2 - Math.round(bohater.wy);
     if (bohater.skok > 0) hy -= Math.round(Math.sin(Math.PI * (1 - bohater.skok / 0.25)) * 8);
     let widac = true;
     if (bohater.trzes > 0) { hx += Math.floor(t * 40) % 2 ? 2 : -2; widac = Math.floor(t * 14) % 2 === 0; }
@@ -991,7 +1045,7 @@ function rysuj(t) {
     tekst(dotykowe ? 'Dotknij ekranu' : 'Naciśnij SPACJĘ', cx, y0 + 360 * U, 28 * U);
     ctx.globalAlpha = 1;
     tekst(dotykowe ? 'i steruj strzałkami na dole' : 'albo kliknij', cx, y0 + 398 * U, 17 * U, '#cfe0ff', 'center', 700);
-    if (!dotykowe) tekst('← →  ruch      M  muzyka      F  pełny ekran', cx, CH - 22 * U, 14 * U, '#ffffff', 'center', 700);
+    if (!dotykowe) tekst('← →  ruch      ↑  skok      M  muzyka      F  pełny ekran', cx, CH - 22 * U, 14 * U, '#ffffff', 'center', 700);
   }
 
   if (stan === 'koniec') {
