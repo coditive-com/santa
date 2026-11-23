@@ -173,11 +173,99 @@ const SPRITES = {
 function rysujTlo(c) {
   niebo(c, ['#0d1b3d', '#112350', '#162c62', '#1c3774', '#244386', '#2d5197', '#385fa6']);
   ziemia(c, '#f4f8ff', '#ffffff', '#d4e3f5');   // śnieg
+  drzewka(c);
   choinka(c);
 }
 
+// Ośnieżone drzewka w tle (powtarzają się na całej szerokości)
+function drzewka(c) {
+  const los = n => { const v = Math.sin(n * 91.7) * 43758.5453; return v - Math.floor(v); };
+  const duza = Math.floor(SW * 0.78);
+  for (let i = 0, x = 8; x < SW + 20; i++, x += 22 + Math.floor(los(i) * 18)) {
+    if (Math.abs(x - duza) < 26) continue;   // nie zasłaniaj dużej choinki
+    const h = 26 + Math.floor(los(i + 50) * 22), dol = ZIEMIA + 1, top = dol - h;
+    c.fillStyle = '#4a2c14'; c.fillRect(x - 1, dol - 4, 3, 4);   // pień
+    for (let y = 0; y < h - 4; y++) {
+      const hw = Math.round((y % 8 + y * 0.6) * 0.55) + 1;
+      c.fillStyle = '#123b2a'; c.fillRect(x - hw - 1, top + y, hw * 2 + 3, 1);   // obrys
+      c.fillStyle = '#1f5a3d'; c.fillRect(x - hw, top + y, hw * 2 + 1, 1);
+      c.fillStyle = '#163f2c'; c.fillRect(x + 1, top + y, hw, 1);
+      if (y % 8 < 3) {   // czapa śniegu na każdej gałęzi
+        c.fillStyle = '#ffffff'; c.fillRect(x - hw, top + y, Math.max(1, hw + 1), 1);
+        c.fillStyle = '#d4e3f5'; c.fillRect(x + 1, top + y, hw, 1);
+      }
+    }
+    c.fillStyle = '#ffffff'; c.fillRect(x, top - 1, 1, 2);   // śnieg na czubku
+  }
+  ziemia(c, '#f4f8ff', '#ffffff', '#d4e3f5');   // zaspy przed drzewkami
+}
+
 // Ruch w tle, rysowany w każdej klatce (np. padający śnieg, migające gwiazdki, latające sanie).
+const SANIE = {
+  paleta: { r: '#d32f2f', R: '#8e1b1b', y: '#ffd54f', b: '#8b5a2b', l: '#d9a86a', d: '#4a2a12', a: '#efd9ac', n: '#ff3b3b',
+            s: '#e53935', w: '#ffffff', f: '#ffd3b0', k: '#141414', g: '#2e8b47', G: '#1f6635' },
+  klatki: [
+    [
+      '.................................a.a....',
+      '......ww........................aaa.....',
+      '.....sssw........................abb....',
+      '.gg.sssss........................bbbb...',
+      'ggggffff.........................bkbbn..',
+      'gGggfkfw...kkkkkk...d.............bb....',
+      'ggggwwww.kk......kkkbbbbbbbbbbbbyb......',
+      'r.rrrwws............bbbbbbbbbbbbb.......',
+      'rrrrrrrrrrrr.........lllllllllll........',
+      'RyyyyyyyyyRr..........b.b...b.b.........',
+      '.RRRRRRRRRRr.........b..b....b.b........',
+      '..y...y...y..y......d...d.....d.d.......',
+      'yyyyyyyyyyyyy...........................',
+    ],
+    [
+      '.................................a.a....',
+      '......ww........................aaa.....',
+      '.....sssw........................abb....',
+      '.gg.sssss........................bbbb...',
+      'ggggffff.........................bkbbn..',
+      'gGggfkfw...kkkkkk...d.............bb....',
+      'ggggwwww.kk......kkkbbbbbbbbbbbbyb......',
+      'r.rrrwws............bbbbbbbbbbbbb.......',
+      'rrrrrrrrrrrr.........lllllllllll........',
+      'RyyyyyyyyyRr........d.bb.b..b.bbd.......',
+      '.RRRRRRRRRRr.............b..b...........',
+      '..y...y...y..y...........d..d...........',
+      'yyyyyyyyyyyyy...........................',
+    ],
+  ],
+};
+const losT = n => { const v = Math.sin(n * 127.1) * 43758.5453; return v - Math.floor(v); };   // stałe „losowe” liczby
+
 function animacjeTla(c, t) {
+  // gwiazdki na niebie (migoczą)
+  for (let i = 0; i < SW * 0.22; i++) {
+    const x = Math.floor(losT(i + 7) * SW), y = 6 + Math.floor(losT(i + 501) * ZIEMIA * 0.5);
+    const b = Math.sin(t * 2 + i * 1.7);
+    c.fillStyle = b > 0.3 ? '#ffffff' : '#9fb4e0';
+    c.fillRect(x, y, 1, 1);
+    if (i % 5 === 0 && b > 0.6) { c.fillStyle = '#fff3c4'; c.fillRect(x - 1, y, 3, 1); c.fillRect(x, y - 1, 1, 3); }
+  }
+  // sanie Mikołaja z reniferem pędzą po niebie
+  const droga = SW + 120;
+  const sx = Math.round((t * 28) % droga) - 60, sy = Math.round(ZIEMIA * 0.2 + Math.sin(t * 2) * 5);
+  for (let k = 1; k <= 6; k++) {   // złoty pył za saniami
+    if (Math.floor(t * 8 + k) % 2) continue;
+    c.fillStyle = k % 2 ? '#ffd54f' : '#ffffff';
+    c.fillRect(sx - k * 4, sy + 11 + Math.round(Math.sin(t * 6 + k) * 2), 1, 1);
+  }
+  rysujObrys(c, SANIE, Math.floor(t * 6), sx, sy, 1, '#0b1433');
+  rysujSprite(c, SANIE, Math.floor(t * 6), sx, sy);
+  // padający śnieg (małe i duże płatki)
+  for (let i = 0; i < SW * 0.35; i++) {
+    const duzy = i % 4 === 0, v = duzy ? 18 : 11;
+    const y = Math.floor((losT(i + 33) * SH + t * v) % SH);
+    const x = Math.floor((losT(i + 77) * SW + Math.sin(t + i) * 4 + SW) % SW);
+    c.fillStyle = duzy ? '#ffffff' : '#cfdcf5';
+    c.fillRect(x, y, duzy ? 2 : 1, duzy ? 2 : 1);
+  }
   // migające lampki i błyszcząca gwiazda na choince
   const kolory = ['#ff4d4d', '#ffd54f', '#4fc3ff', '#ff7bd8', '#7dff8a'];
   choinkaLampki().forEach((l, i) => {
