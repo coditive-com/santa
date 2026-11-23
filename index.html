@@ -173,8 +173,30 @@ const SPRITES = {
 function rysujTlo(c) {
   niebo(c, ['#0d1b3d', '#112350', '#162c62', '#1c3774', '#244386', '#2d5197', '#385fa6']);
   ziemia(c, '#f4f8ff', '#ffffff', '#d4e3f5');   // śnieg
+  ksiezyc(c);
   drzewka(c);
   choinka(c);
+}
+
+// Księżyc z kraterami i poświatą (poniżej liczników)
+function ksiezyc(c) {
+  const mx = Math.floor(SW * 0.4), my = 62, r = 14;
+  for (const [rr, kol] of [[r + 6, 'rgba(255,248,210,0.06)'], [r + 3, 'rgba(255,248,210,0.10)']]) {
+    c.fillStyle = kol;
+    for (let y = -rr; y <= rr; y++) { const w = Math.round(Math.sqrt(rr * rr - y * y)); c.fillRect(mx - w, my + y, w * 2 + 1, 1); }
+  }
+  for (let y = -r; y <= r; y++) {
+    const w = Math.round(Math.sqrt(r * r - y * y));
+    for (let x = -w; x <= w; x++) {
+      const swiatlo = -x - y;   // jaśniej z lewej góry, cień z prawej dołu
+      c.fillStyle = swiatlo > 10 ? '#fffbe6' : swiatlo > -8 ? '#f6ecbf' : '#ddcf98';
+      c.fillRect(mx + x, my + y, 1, 1);
+    }
+  }
+  [[-5, -4, 3], [4, 2, 4], [-2, 7, 2], [6, -7, 2], [-8, 3, 2]].forEach(([dx, dy, s]) => {   // kratery
+    c.fillStyle = '#cfc088'; c.fillRect(mx + dx, my + dy, s, s);
+    c.fillStyle = '#b8a970'; c.fillRect(mx + dx + 1, my + dy + 1, s - 1, s - 1);
+  });
 }
 
 // Ośnieżone drzewka w tle (powtarzają się na całej szerokości)
