@@ -367,8 +367,8 @@ const dotyki = new Map();
 // Klawisze: e.key + e.code (różne przeglądarki i układy klawiatury), także gdy gra jest w podglądzie (iframe)
 function klawisz(e) {
   const k = e.key, c = e.code;
-  if (k === 'ArrowLeft' || k === 'Left' || c === 'ArrowLeft' || c === 'KeyA') return 'lewo';
-  if (k === 'ArrowRight' || k === 'Right' || c === 'ArrowRight' || c === 'KeyD') return 'prawo';
+  if (k === 'ArrowLeft' || k === 'Left' || c === 'ArrowLeft' || c === 'KeyA' || k === 'PageUp') return 'lewo';     // PageUp = pilot (wstecz)
+  if (k === 'ArrowRight' || k === 'Right' || c === 'ArrowRight' || c === 'KeyD' || k === 'PageDown') return 'prawo'; // PageDown = pilot (dalej)
   return null;
 }
 addEventListener('keydown', e => {
@@ -376,6 +376,7 @@ addEventListener('keydown', e => {
   const k = e.key, kier = klawisz(e);
   if (kier) { klawisze[kier] = true; e.preventDefault(); }
   if (k === ' ' || k === 'Enter') { e.preventDefault(); akcja(false); }        // Spacja = start / graj dalej
+  if (k === 'F5' || k === 'Escape' || k === '.' || k === 'b' || k === 'B') { e.preventDefault(); akcja(false); } // pilot: start / ekran = start / graj dalej
   if ((k === 'r' || k === 'R') && stan === 'koniec') akcja(true);              // R = od nowa
   if (k === 'm' || k === 'M') przelaczDzwiek();
   if (k === 'f' || k === 'F') pelnyEkran();

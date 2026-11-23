@@ -53,7 +53,7 @@ const SPRITES = {
 
 ### Sterowanie
 
-- Klawiatura: strzałki ← → (oraz A/D), rozpoznawane po e.key i e.code. Płótno ma fokus (tabIndex, focus() przy starcie i przy kliknięciu), żeby strzałki działały też w podglądzie w ramce. Po utracie fokusu klawisze się zwalniają. Na komputerze kliknięcie myszą nie steruje bohaterem.
+- Klawiatura: strzałki ← → (oraz A/D), rozpoznawane po e.key i e.code. Pilot do prezentacji (np. Logitech): PageUp = lewo, PageDown = prawo (przytrzymanie = ruch), a F5, Esc, „.” i B = start / graj dalej. Płótno ma fokus (tabIndex, focus() przy starcie i przy kliknięciu), żeby strzałki działały też w podglądzie w ramce. Po utracie fokusu klawisze się zwalniają. Na komputerze kliknięcie myszą nie steruje bohaterem.
 - Dotyk: przytrzymanie lewej połowy ekranu to ruch w lewo, prawej połowy w prawo. Na telefonie i tablecie (wykryj dotyk) na samym dole ekranu, w wyższym pasie śniegu pod bohaterem (40 px od dolnej krawędzi, przy lewym i prawym brzegu), pokaż dwa duże półprzezroczyste przyciski ze strzałkami ◀ ▶, które podświetlają się na żółto przy naciśnięciu. Na komputerze strzałek nie pokazuj.
 - Spacja, Enter albo dotknięcie ekranu: start gry. Na ekranie końcowym Spacja lub Enter to „Graj dalej”, a R to „Od nowa”. Przyciski można też kliknąć albo dotknąć.
 - F: pełny ekran. M: wyciszenie dźwięku.
