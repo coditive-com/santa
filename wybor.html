@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Wybierz bohatera</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0f1830; overflow: hidden; }
+  canvas { display: block; width: 100vw; height: 100vh; width: 100dvw; height: 100dvh; image-rendering: pixelated; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const SPRITES = {
+  balwan: {
+    paleta: { W: '#ffffff', w: '#eef5ff', S: '#c9daf0', s: '#9fb6d6', k: '#22252e', K: '#111318', g: '#4a4f5c', r: '#e53935', R: '#a8221f', y: '#fff3c4', Y: '#e8d590', e: '#1a1a22', h: '#ffffff', o: '#ff9b3d', O: '#d96a12', p: '#ffb3c1', b: '#7a4a24' },
+    klatki: [
+      [
+        '................................',
+        '............gkkkkKKK............',
+        '............gkkkkKKK............',
+        '............gkkkkKKK............',
+        '............Rrrrrrrr............',
+        '............gkkkkKKK............',
+        '..........kkkkkkkkkKKK..........',
+        '............WWWWwwww............',
+        '...........WWWWwwwwws...........',
+        '...........WWWwwwwwws...........',
+        '..........WWWwwwwwwwws..........',
+        '..........WWwhewwwheSs..........',
+        '..........WwweewwweeSs..........',
+        '..........wwpwwoooOOps..........',
+        '..........wwwwwwOOSSSs..........',
+        '......b....wwwewSSeSs....b......',
+        '.....bb....wswweeeSss....bb.....',
+        '.......b..yyrryyrryyrry.b.......',
+        '........b.YYRRYYRRYYRR.b........',
+        '.........bWWWWWwwwwwrrb.........',
+        '.........WWWWWweewwwyys.........',
+        '........WWWWWwwwwwwwRRss........',
+        '........WWWWwwwwwwwwRwss........',
+        '........WWWwwwweewwwwwSs........',
+        '........WWwwwwwwwwwwwSSs........',
+        '........WwwwwwwwwwwwSSSs........',
+        '........wwwwwwweewwSSSss........',
+        '........wwwwwwwwwwSSSSss........',
+        '.........wwwwwwwwSSSSss.........',
+        '..........wswwwwSSSSss..........',
+        '..........ssswwSSSSsss..........',
+        '............ssssssss............',
+      ],
+      [
+        '................................',
+        '............gkkkkKKK............',
+        '............gkkkkKKK............',
+        '............gkkkkKKK............',
+        '............Rrrrrrrr............',
+        '............gkkkkKKK............',
+        '..........kkkkkkkkkKKK..........',
+        '..............WWWw..............',
+        '............WWWWwwww............',
+        '...........WWWWwwwwws...........',
+        '..........WWWWwwwwwwss..........',
+        '..........WWWwwwwwwwws..........',
+        '..........WWwhewwwheSs..........',
+        '..........WwweewwweeSs..........',
+        '..........wwpwwoooOOps..........',
+        '..........wwwwwwOOSSSs..........',
+        '...........wwwewSSeSs...........',
+        '............swweeeSs............',
+        '..........yyrryyrryyrry.........',
+        '.....b....YYRRYYRRYYRR....b.....',
+        '......bb.WWWWWwwwwwwwrr.bb......',
+        '.....b..bbWWWwweewwwwybb..b.....',
+        '........WWWWwwwwwwwwwwRR........',
+        '........WWWwwwwwwwwwwwRs........',
+        '........WWwwwwweewwwwSSs........',
+        '........WwwwwwwwwwwwSSSs........',
+        '........wwwwwwwwwwwSSSss........',
+        '........wwwwwwweewSSSSss........',
+        '.........wwwwwwwwSSSSSs.........',
+        '.........wwwwwwwSSSSSss.........',
+        '..........wswwwSSSSSss..........',
+        '...........ssssSSssss...........',
+      ],
+    ],
+  },
+  renifer: {
+    paleta: { a: '#efd9ac', b: '#8b5a2b', d: '#6b4220', l: '#e0b07a', e: '#141414', w: '#ffffff', r: '#e53935', R: '#ff8a80',
+              s: '#2e9b5a', S: '#1f7a44', y: '#ffffff', p: '#f4a6a6', k: '#2b1a10', h: '#3a2414' },
+    klatki: [
+      [
+        '................................',
+        '...a....a..............a....a...',
+        '...a....a..a........a..a....a...',
+        '...aa...a.aa........aa.a...aa...',
+        '....aa..aaa..........aaa..aa....',
+        '.....aaaaa............aaaaa.....',
+        '......aaa..............aaa......',
+        '.......aa..............aa.......',
+        '........aabbbbbbbbbbbbaa........',
+        '......ddbbbbbbbbbbbbbbbbdd......',
+        '....ppdbbbbbbbbbbbbbbbbbbdpp....',
+        '....dppbbbbbbbbbbbbbbbbbbppd....',
+        '.....ddbbbbbbbbbbbbbbbbbbdd.....',
+        '.......bbweebbbbbbbbweedd.......',
+        '.......bbeeebbbbbbbbeeedd.......',
+        '.......bbeeebbbbbbbbeeedd.......',
+        '.......bppbbbllllllbbbppd.......',
+        '........bbblllRrrrlllbdd........',
+        '........bbllrrrrrrrrlldd........',
+        '........bblllrrrrrrllldd........',
+        '.........blllllllllllld.........',
+        '..........dllllkklllld..........',
+        '...........dddddddddd...........',
+        '........SSSSSSSSSSSSSSSS........',
+        '........ssssssssssssssss........',
+        '........sysysysyysysysys........',
+        '.........bbbbbbbbbbbbdd.........',
+        '........bbbbllllllllbbdd........',
+        '........dbbbllllllllbbdd........',
+        '........dbbb........bbbd........',
+        '........dbbb........bbbd........',
+        '........hhhh........hhhh........',
+      ],
+      [
+        '................................',
+        '................................',
+        '...a....a..............a....a...',
+        '...a....a..a........a..a....a...',
+        '...aa...a.aa........aa.a...aa...',
+        '....aa..aaa..........aaa..aa....',
+        '.....aaaaa............aaaaa.....',
+        '......aaa..............aaa......',
+        '.......aa..............aa.......',
+        '........aabbbbbbbbbbbbaa........',
+        '......ddbbbbbbbbbbbbbbbbdd......',
+        '....ppdbbbbbbbbbbbbbbbbbbdpp....',
+        '....dppbbbbbbbbbbbbbbbbbbppd....',
+        '.....ddbbbbbbbbbbbbbbbbbbdd.....',
+        '.......bbweebbbbbbbbweedd.......',
+        '.......bbeeebbbbbbbbeeedd.......',
+        '.......bbeeebbbbbbbbeeedd.......',
+        '.......bppbbbllllllbbbppd.......',
+        '........bbblllRrrrlllbdd........',
+        '........bbllrrrrrrrrlldd........',
+        '........bblllrrrrrrllldd........',
+        '.........blllllllllllld.........',
+        '..........dllllkklllld..........',
+        '...........dddddddddd...........',
+        '........SSSSSSSSSSSSSSSS........',
+        '........ssssssssssssssss........',
+        '........sysysysyysysysys........',
+        '.........bbbbbbbbbbbbdd.........',
+        '........bbbbllllllllbbdd........',
+        '........dbbbllllllllbbdd........',
+        '.........dbbb......bbbd.........',
+        '.........hhhh......hhhh.........',
+      ],
+    ],
+  },
+  elf: {
+    paleta: { G: '#2e9b5a', L: '#5fd18a', g: '#1c6b3c', W: '#ffffff', w: '#e6eef8', S: '#b9c8dc', f: '#ffd3b0', F: '#e8a57c', p: '#ff8fa3', b: '#8a5a2b', e: '#1a1a22', R: '#d23b3b', r: '#e53935', y: '#ffd54f', Y: '#f2a900', k: '#2b2b33', d: '#2e7d4a', D: '#1b5a33' },
+    klatki: [
+  [
+    '................................',
+    '......................wWw.......',
+    '......................WWww......',
+    '....................GGWww.......',
+    '..................LGGg..........',
+    '................LGGGGg..........',
+    '..............LLGGGGGg..........',
+    '.............LGGGGGGGg..........',
+    '............LGGGGGGGGgg.........',
+    '...........LGGGGGGGGGGg.........',
+    '..........WWWWWWWWWWWWWS........',
+    '.......f..WWWWWWWWWWWWSS..F.....',
+    '.......ff.bbffffffffffbb.FF.....',
+    '.......fpfffffffffffffFFFpF.....',
+    '........fffffweffffwefFFFF......',
+    '.........ffffeeffffeefFFF.......',
+    '..........fppfffFFfffppF........',
+    '..........ffffeffffeffFF........',
+    '..........fffffeRRefffFF........',
+    '...........ffffffffffFF.........',
+    '.............ffffffFF...........',
+    '.........rryrrryrryrrryrr.......',
+    '.......LGGrGrGrGrGrGrGrRGgg.....',
+    '.......LGGLGGGGGGGGGGGggGgg.....',
+    '.......GGgLGGGGGGGGGGGggGgg.....',
+    '.......ff.kkkkkyYYykkkkk.FF.....',
+    '..........LGGGGGGGGGGGgg........',
+    '..........GG.GGG..GGG.gg........',
+    '............rrR....rrR..........',
+    '............wwS....wwS..........',
+    '..........d.rrR....rrR.d........',
+    '..........Ddddd....ddddD........'
+  ],
+  [
+    '................................',
+    '................................',
+    '.......................wWw......',
+    '....................GGWWww......',
+    '..................LGGgWww.......',
+    '................LGGGGg..........',
+    '..............LLGGGGGg..........',
+    '.............LGGGGGGGg..........',
+    '............LGGGGGGGGgg.........',
+    '...........LGGGGGGGGGGg.........',
+    '..........WWWWWWWWWWWWWS........',
+    '.......f..WWWWWWWWWWWWSS..F.....',
+    '.......ff.bbffffffffffbb.FF.....',
+    '.......fpfffffffffffffFFFpF.....',
+    '........fffffweffffwefFFFF......',
+    '.........ffffeeffffeefFFF.......',
+    '..........fppfffFFfffppF........',
+    '..........ffffeffffeffFF........',
+    '..........fffffeRRefffFF........',
+    '...........ffffffffffFF.........',
+    '.............ffffffFF...........',
+    '.........rryrrryrryrrryrr.......',
+    '.......LGGrGrGrGrGrGrGrRGgg.....',
+    '.......LGGLGGGGGGGGGGGggGgg.....',
+    '........ffLGGGGGGGGGGGggGgg.....',
+    '..........kkkkkyYYykkkkkGgg.....',
+    '..........LGGGGGGGGGGGgg.FF.....',
+    '..........GG.GGG..GGG.gg........',
+    '...........rrR......rrR.........',
+    '.........d.wwS......wwS.........',
+    '.........Dddd.......rrR.d.......',
+    '....................ddddD.......'
+  ]
+],
+  },
+};
+const POSTACIE = [
+  { s: SPRITES.balwan, nazwa: 'BAŁWAN', kolor: '#9fd3ff' },
+  { s: SPRITES.renifer, nazwa: 'RENIFER', kolor: '#ffb070' },
+  { s: SPRITES.elf, nazwa: 'ELF', kolor: '#7ee2a0' },
+];
+
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+function rozmiar() {
+  DPR = Math.min(3, window.devicePixelRatio || 1);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  ctx.imageSmoothingEnabled = false;
+}
+window.addEventListener('resize', rozmiar); rozmiar();
+
+function rysujSprite(sp, k, x, y, s) {
+  const w = sp.klatki[k % sp.klatki.length];
+  for (let j = 0; j < w.length; j++) for (let i = 0; i < w[j].length; i++) {
+    const kol = sp.paleta[w[j][i]]; if (!kol) continue;
+    ctx.fillStyle = kol; ctx.fillRect(x + i * s, y + j * s, s, s);
+  }
+}
+function rysujObrys(sp, k, x, y, s) {
+  const w = sp.klatki[k % sp.klatki.length];
+  ctx.fillStyle = '#0a1024';
+  for (let j = 0; j < w.length; j++) for (let i = 0; i < w[j].length; i++) {
+    if (!sp.paleta[w[j][i]]) continue;
+    ctx.fillRect(x + (i - 1) * s, y + j * s, s * 3, s); ctx.fillRect(x + i * s, y + (j - 1) * s, s, s * 3);
+  }
+}
+
+const platki = Array.from({ length: 120 }, () => ({ x: Math.random(), y: Math.random(), v: 0.03 + Math.random() * 0.06, d: Math.random() < 0.3 ? 2 : 1, f: Math.random() * 6 }));
+
+function tekst(t, x, y, px, kolor) {
+  ctx.font = '900 ' + px + 'px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round'; ctx.lineWidth = px * 0.12; ctx.strokeStyle = '#0a1024';
+  ctx.strokeText(t, x, y); ctx.fillStyle = kolor; ctx.fillText(t, x, y);
+}
+
+let ost = performance.now();
+function klatka(teraz) {
+  const dt = Math.min(0.05, (teraz - ost) / 1000); ost = teraz;
+  const t = teraz / 1000, cw = cv.width, ch = cv.height;
+  // niebo
+  const gr = ctx.createLinearGradient(0, 0, 0, ch);
+  gr.addColorStop(0, '#0b1433'); gr.addColorStop(0.6, '#24386e'); gr.addColorStop(1, '#3b5a9a');
+  ctx.fillStyle = gr; ctx.fillRect(0, 0, cw, ch);
+  const px = Math.max(2, Math.round(Math.min(cw, ch) / 200));
+  // śnieżna ziemia
+  const zy = Math.round(ch * 0.8);
+  ctx.fillStyle = '#dfeaff'; ctx.fillRect(0, zy, cw, ch - zy);
+  ctx.fillStyle = '#ffffff';
+  for (let x = 0; x < cw; x += px * 24) ctx.fillRect(x, zy - px, px * 14, px);
+  ctx.fillStyle = '#b8cbea';
+  for (let x = px * 9; x < cw; x += px * 31) ctx.fillRect(x, zy + px * 6, px * 8, px);
+  // płatki
+  for (const p of platki) {
+    p.y += p.v * dt; if (p.y > 1) { p.y = 0; p.x = Math.random(); }
+    const x = (p.x + Math.sin(t + p.f) * 0.01) * cw;
+    ctx.fillStyle = p.d === 2 ? '#ffffff' : '#c9d8f5';
+    ctx.fillRect(Math.round(x), Math.round(p.y * ch), px * p.d, px * p.d);
+  }
+  // postacie
+  const pion = W < H * 0.9;
+  const n = POSTACIE.length;
+  POSTACIE.forEach((p, i) => {
+    const k = Math.floor(t * 3 + i) % 2;
+    if (!pion) {
+      const kol = cw / n;
+      const s = Math.max(2, Math.floor(Math.min(kol * 0.8 / 32, ch * 0.5 / 32)));
+      const x = Math.round(kol * i + kol / 2 - 16 * s), y = zy - 32 * s + s;
+      rysujObrys(p.s, k, x, y, s); rysujSprite(p.s, k, x, y, s);
+      const cx = (kol * i + kol / 2) / DPR;
+      tekst(String(i + 1), cx, (y - 1 * s) / DPR - Math.min(H * 0.12, 70), Math.min(H * 0.18, kol / DPR * 0.5), '#ffd54f');
+      tekst(p.nazwa, cx, (zy + (ch - zy) / 2) / DPR, Math.min((ch - zy) / DPR * 0.5, kol / DPR * 0.16), p.kolor);
+    } else {
+      const wier = zy / n;
+      const s = Math.max(2, Math.floor(Math.min(cw * 0.45 / 32, wier * 0.85 / 32)));
+      const y = Math.round(wier * i + wier / 2 - 16 * s), x = Math.round(cw * 0.3 - 16 * s);
+      rysujObrys(p.s, k, x, y, s); rysujSprite(p.s, k, x, y, s);
+      const cy = (wier * i + wier / 2) / DPR;
+      tekst(String(i + 1), W * 0.68, cy - wier / DPR * 0.13, Math.min(wier / DPR * 0.4, W * 0.18), '#ffd54f');
+      tekst(p.nazwa, W * 0.68, cy + wier / DPR * 0.22, Math.min(wier / DPR * 0.15, W * 0.08), p.kolor);
+    }
+  });
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  requestAnimationFrame(klatka);
+}
+// teksty w pikselach CSS
+const _tekst = tekst;
+tekst = function (t, x, y, px, kolor) { ctx.save(); ctx.setTransform(DPR, 0, 0, DPR, 0, 0); _tekst(t, x, y, px, kolor); ctx.restore(); };
+document.addEventListener('keydown', e => { if (e.key === 'f' || e.key === 'F') { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}); } });
+requestAnimationFrame(klatka);
+</script>
+</body>
+</html>
