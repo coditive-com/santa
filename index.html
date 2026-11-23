@@ -449,7 +449,7 @@ function dzwiekSkok() {
 // Gotowe klocki: napis(x, y, '+1', kolor), puf(x, y, ile, kolory), dzwiekZlapania(), bohater.skok = 0.25
 function poZlapaniu(r) {
   wynik++;
-  bohater.skok = 0.4;   // renifer wysoko podskakuje z radości
+  bohater.skok = 0.55;   // renifer bardzo wysoko podskakuje z radości
   napis(r.sx, r.sy, '+1', '#ffd54f');
   puf(r.sx, r.sy, 10, ['#ffd54f', '#ff7a6e', '#6ab8ff', '#ffffff']);
   dzwiekZlapania();
@@ -1004,7 +1004,7 @@ function rysuj(t) {
   if (SPRITES.bohater && stan !== 'start') {
     const bh = wysBohatera();
     let hx = bohater.x, hy = ZIEMIA - bh + 2 - Math.round(bohater.wy);
-    if (bohater.skok > 0) hy -= Math.round(Math.sin(Math.PI * (1 - bohater.skok / 0.4)) * 22);
+    if (bohater.skok > 0) hy -= Math.round(Math.sin(Math.PI * (1 - bohater.skok / 0.55)) * 45);
     let widac = true;
     if (bohater.trzes > 0) { hx += Math.floor(t * 40) % 2 ? 2 : -2; widac = Math.floor(t * 14) % 2 === 0; }
     const klatka = bohater.idzie ? Math.floor(bohater.anim / 0.15) % 2 : 0;
