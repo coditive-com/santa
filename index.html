@@ -383,6 +383,29 @@ function animacjeTla(c, t) {
     c.fillRect(x, y, 1, 1);
     if (i % 5 === 0 && b > 0.6) { c.fillStyle = '#fff3c4'; c.fillRect(x - 1, y, 3, 1); c.fillRect(x, y - 1, 1, 3); }
   }
+  // Gwiazda Betlejemska – duża, świecąca, z długim promieniem w dół
+  {
+    const gx = Math.floor(SW * 0.62), gy = 40, puls = Math.sin(t * 3);
+    c.fillStyle = 'rgba(255,240,170,0.12)';
+    for (let y = -9; y <= 9; y++) { const w = Math.round(Math.sqrt(81 - y * y)); c.fillRect(gx - w, gy + y, w * 2 + 1, 1); }
+    const prom = (dl, kol) => {
+      c.fillStyle = kol;
+      for (let i = 1; i <= dl; i++) {
+        const g = i < dl * 0.4 ? 1 : 0;
+        c.fillRect(gx - g, gy - i * (dl > 20 ? 0 : 1) + (dl > 20 ? i : 0), 1 + g * 2, 1);
+      }
+    };
+    prom(30 + Math.round(puls * 2), '#fff3c4');   // długi promień w dół
+    c.fillStyle = '#fff3c4';
+    const r = 10 + Math.round(puls);
+    c.fillRect(gx, gy - r, 1, r * 2 + 1); c.fillRect(gx - r, gy, r * 2 + 1, 1);   // krzyż
+    c.fillRect(gx - 1, gy - 5, 3, 11); c.fillRect(gx - 5, gy - 1, 11, 3);
+    c.fillStyle = '#fff8dc';
+    for (let i = 1; i <= 4; i++) { c.fillRect(gx - i, gy - i, 1, 1); c.fillRect(gx + i, gy - i, 1, 1); c.fillRect(gx - i, gy + i, 1, 1); c.fillRect(gx + i, gy + i, 1, 1); }
+    c.fillStyle = '#ffffff'; c.fillRect(gx - 2, gy - 2, 5, 5);
+    c.fillStyle = '#ffe066'; c.fillRect(gx - 1, gy - 1, 3, 3);
+    c.fillStyle = '#ffffff'; c.fillRect(gx, gy, 1, 1);
+  }
   // sanie Mikołaja z reniferem pędzą po niebie
   const droga = SW + 120;
   const sx = Math.round((t * 28) % droga) - 60, sy = Math.round(ZIEMIA * 0.2 + Math.sin(t * 2) * 5);
