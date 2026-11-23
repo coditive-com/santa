@@ -449,6 +449,10 @@ function dzwiekSkok() {
 // Gotowe klocki: napis(x, y, '+1', kolor), puf(x, y, ile, kolory), dzwiekZlapania(), bohater.skok = 0.25
 function poZlapaniu(r) {
   wynik++;
+  bohater.skok = 0.25;   // renifer podskakuje z radości
+  napis(r.sx, r.sy, '+1', '#ffd54f');
+  puf(r.sx, r.sy, 10, ['#ffd54f', '#ff7a6e', '#6ab8ff', '#ffffff']);
+  dzwiekZlapania();
 }
 
 // Co się dzieje, gdy bohater złapie złą rzecz. Wynik nigdy nie spada poniżej 0.
