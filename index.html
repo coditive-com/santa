@@ -173,10 +173,66 @@ const SPRITES = {
 function rysujTlo(c) {
   niebo(c, ['#0d1b3d', '#112350', '#162c62', '#1c3774', '#244386', '#2d5197', '#385fa6']);
   ziemia(c, '#f4f8ff', '#ffffff', '#d4e3f5');   // śnieg
+  choinka(c);
 }
 
 // Ruch w tle, rysowany w każdej klatce (np. padający śnieg, migające gwiazdki, latające sanie).
 function animacjeTla(c, t) {
+  // migające lampki i błyszcząca gwiazda na choince
+  const kolory = ['#ff4d4d', '#ffd54f', '#4fc3ff', '#ff7bd8', '#7dff8a'];
+  choinkaLampki().forEach((l, i) => {
+    const on = Math.floor(t * 2.5 + i * 0.7) % 3 !== 0;
+    c.fillStyle = on ? kolory[(i + Math.floor(t * 1.2)) % kolory.length] : '#1a4a2c';
+    c.fillRect(l.x, l.y, 2, 2);
+    if (on) { c.fillStyle = '#ffffff'; c.fillRect(l.x, l.y, 1, 1); }
+  });
+  const { x, top } = choinkaMiejsce();
+  const blysk = Math.sin(t * 4) > 0;
+  c.fillStyle = blysk ? '#fff3a0' : '#ffd54f';
+  c.fillRect(x - 2, top - 7, 5, 5);
+  c.fillRect(x, top - 10, 1, 11); c.fillRect(x - 5, top - 5, 11, 1);
+  if (blysk) { c.fillStyle = '#ffffff'; c.fillRect(x - 1, top - 6, 2, 2); }
+}
+
+// CHOINKA w tle
+function choinkaMiejsce() { return { x: Math.floor(SW * 0.78), top: ZIEMIA - 76 }; }
+function choinkaSzer(y) {   // pół szerokości choinki w wierszu y (od czubka), 4 piętra
+  const pietra = [[0, 16, 1, 7], [10, 30, 3, 11], [22, 46, 5, 15], [36, 64, 7, 19]];
+  let hw = -1;
+  for (const [od, d, a, b] of pietra) if (y >= od && y < d) hw = Math.max(hw, Math.round(a + (b - a) * (y - od) / (d - od - 1)));
+  return hw;
+}
+function choinka(c) {
+  const { x, top } = choinkaMiejsce();
+  c.fillStyle = '#5a3418'; c.fillRect(x - 4, top + 64, 8, ZIEMIA - top - 64 + 1);   // pień
+  c.fillStyle = '#7a4a24'; c.fillRect(x - 4, top + 64, 3, ZIEMIA - top - 64 + 1);
+  for (let y = 0; y < 64; y++) {
+    const hw = choinkaSzer(y);
+    c.fillStyle = '#0f3a22'; c.fillRect(x - hw - 1, top + y - 1, hw * 2 + 3, 2);   // obrys
+  }
+  for (let y = 0; y < 64; y++) {
+    const hw = choinkaSzer(y), nast = choinkaSzer(y + 1);
+    c.fillStyle = '#2e8b47'; c.fillRect(x - hw, top + y, hw * 2 + 1, 1);
+    c.fillStyle = '#4fbf6a'; c.fillRect(x - hw, top + y, Math.max(1, Math.floor(hw * 0.6)), 1);   // światło z lewej
+    c.fillStyle = '#1f6635'; c.fillRect(x + Math.ceil(hw * 0.4), top + y, Math.floor(hw * 0.6) + 1, 1);   // cień z prawej
+    if (nast < hw - 2 || y === 63) {   // śnieg na dole każdego piętra
+      c.fillStyle = '#ffffff'; c.fillRect(x - hw, top + y - 1, Math.floor(hw * 1.3), 2);
+      c.fillStyle = '#d4e3f5'; c.fillRect(x - hw + Math.floor(hw * 1.3), top + y, Math.ceil(hw * 0.7) + 1, 1);
+    }
+  }
+  [[-6, 24, '#e53935'], [6, 33, '#ffd54f'], [-10, 52, '#4fc3ff'], [9, 57, '#e53935'], [-1, 43, '#ff7bd8'], [1, 12, '#ffd54f']].forEach(([dx, dy, kol]) => {   // bombki
+    c.fillStyle = '#0f3a22'; c.fillRect(x + dx - 1, top + dy - 1, 5, 5);
+    c.fillStyle = kol; c.fillRect(x + dx, top + dy, 3, 3);
+    c.fillStyle = '#ffffff'; c.fillRect(x + dx, top + dy, 1, 1);
+  });
+}
+function choinkaLampki() {
+  const { x, top } = choinkaMiejsce(), l = [];
+  [8, 19, 30, 41, 50, 61].forEach((y, r) => {
+    const hw = choinkaSzer(y);
+    for (let dx = -hw + 2 + (r % 2) * 2; dx < hw - 1; dx += 5) l.push({ x: x + dx, y: top + y });
+  });
+  return l;
 }
 
 // KROK 8: co się dzieje, gdy bohater złapie dobrą rzecz (r = rzecz, r.sx/r.sy = jej środek).
