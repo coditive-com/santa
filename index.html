@@ -239,7 +239,56 @@ function rysujTlo(c) {
   ziemia(c, '#f4f8ff', '#ffffff', '#d4e3f5');   // śnieg
   ksiezyc(c);
   drzewka(c);
+  domekZPiernika(c);
   choinka(c);
+}
+
+// Domek z piernika po lewej stronie
+function domekZPiernika(c) {
+  const x = 4, w = 40, dol = ZIEMIA + 1, sciana = 26, top = dol - sciana;
+  // ściany
+  c.fillStyle = '#4a2408'; c.fillRect(x - 1, top - 1, w + 2, sciana + 2);
+  c.fillStyle = '#b8651e'; c.fillRect(x, top, w, sciana);
+  c.fillStyle = '#d68a3c'; c.fillRect(x, top, 3, sciana);
+  c.fillStyle = '#8a4712'; c.fillRect(x + w - 4, top, 4, sciana);
+  for (let i = 0; i < 4; i++) { c.fillStyle = '#9c5517'; c.fillRect(x + 4 + i * 9, top + 8 + (i % 2) * 9, 2, 1); }   // piernikowe kropki
+  // dach z lukrem
+  for (let y = 0; y < 18; y++) {
+    const hw = Math.round(y * 1.35) + 2, cx = x + w / 2;
+    c.fillStyle = '#4a2408'; c.fillRect(cx - hw - 1, top - 18 + y, hw * 2 + 2, 1);
+    c.fillStyle = y % 6 < 2 ? '#ffffff' : '#a0521a'; c.fillRect(cx - hw, top - 18 + y, hw * 2, 1);
+    c.fillStyle = y % 6 < 2 ? '#d4e3f5' : '#7a3b10'; c.fillRect(cx + Math.floor(hw * 0.4), top - 18 + y, Math.ceil(hw * 0.6), 1);
+  }
+  // lukrowe sople pod dachem
+  c.fillStyle = '#ffffff';
+  for (let i = 0; i < w + 4; i += 3) c.fillRect(x - 2 + i, top, 2, 1 + (i % 6 ? 1 : 3));
+  // cukierki na dachu
+  [[-10, -6, '#e53935'], [0, -12, '#2e9b5a'], [9, -5, '#ffd54f'], [-4, -3, '#4fc3ff'], [14, -2, '#ff7bd8']].forEach(([dx, dy, k]) => {
+    c.fillStyle = k; c.fillRect(x + w / 2 + dx, top + dy, 3, 2);
+    c.fillStyle = '#ffffff'; c.fillRect(x + w / 2 + dx, top + dy, 1, 1);
+  });
+  // komin ze śniegiem
+  c.fillStyle = '#4a2408'; c.fillRect(x + 27, top - 20, 7, 10);
+  c.fillStyle = '#c0392b'; c.fillRect(x + 28, top - 19, 5, 9);
+  c.fillStyle = '#ffffff'; c.fillRect(x + 27, top - 21, 7, 2);
+  // drzwi
+  c.fillStyle = '#4a2408'; c.fillRect(x + 15, dol - 14, 10, 14);
+  c.fillStyle = '#e53935'; c.fillRect(x + 16, dol - 13, 8, 13);
+  c.fillStyle = '#ffffff'; for (let y = dol - 13; y < dol; y += 3) c.fillRect(x + 16, y, 8, 1);   // paski jak cukierek
+  c.fillStyle = '#ffd54f'; c.fillRect(x + 22, dol - 7, 1, 2);
+  // okna z ciepłym światłem
+  for (const ox of [x + 5, x + 29]) {
+    c.fillStyle = '#ffffff'; c.fillRect(ox - 1, top + 5, 8, 8);
+    c.fillStyle = '#ffcf5a'; c.fillRect(ox, top + 6, 6, 6);
+    c.fillStyle = '#fff3c4'; c.fillRect(ox, top + 6, 2, 2);
+    c.fillStyle = '#ffffff'; c.fillRect(ox + 3, top + 6, 1, 6); c.fillRect(ox, top + 9, 6, 1);
+  }
+  // laski cukrowe przy drzwiach
+  for (const lx of [x + 11, x + 27]) {
+    for (let y = 0; y < 10; y++) { c.fillStyle = y % 2 ? '#ffffff' : '#e53935'; c.fillRect(lx, dol - 10 + y, 2, 1); }
+    c.fillStyle = '#e53935'; c.fillRect(lx, dol - 12, 4, 2); c.fillStyle = '#ffffff'; c.fillRect(lx + 2, dol - 12, 1, 2); c.fillRect(lx + 3, dol - 10, 1, 2);
+  }
+  c.fillStyle = '#ffffff'; c.fillRect(x - 2, dol - 1, w + 4, 2);   // śnieg przy ścianie
 }
 
 // Księżyc z kraterami i poświatą (poniżej liczników)
